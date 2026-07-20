@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.routers.health import router as health_router
 
 # Create the FastAPI application.
 # Every incoming request starts here.
@@ -8,7 +9,11 @@ app = FastAPI(
     version="1.0.0",
 )
 
-
+app.include_router(
+    health_router,
+    prefix="/api/v1",
+    tags=["Health"]
+)
 @app.get("/")
 def root():
     """
