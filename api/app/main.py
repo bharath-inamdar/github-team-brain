@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 from app.routers.health import router as health_router
+from app.core.config import settings
 
 # Create the FastAPI application.
 # Every incoming request starts here.
 app = FastAPI(
-    title="GitHub Team Brain API",
+    title=settings.app_name,
     description="Backend API for GitHub Team Brain",
-    version="1.0.0",
+    version=settings.app_version,
 )
 
 app.include_router(
