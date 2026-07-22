@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from app.routers.health import router as health_router
 from app.core.config import settings
+from app.database import engine
+from app.models import Base
 
+Base.metadata.create_all(bind=engine)
 # Create the FastAPI application.
 # Every incoming request starts here.
 app = FastAPI(
