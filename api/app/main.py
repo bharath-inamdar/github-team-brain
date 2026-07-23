@@ -2,7 +2,12 @@ from fastapi import FastAPI
 from app.routers.health import router as health_router
 from app.core.config import settings
 from app.database import engine
-from app.models import Base
+from app.models import Base,Repository
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.schemas import RepositoryCreate
+
+from app.database import get_db
 
 Base.metadata.create_all(bind=engine)
 # Create the FastAPI application.
@@ -19,12 +24,30 @@ app.include_router(
     tags=["Health"]
 )
 @app.get("/")
-def root():
-    """
-    Health-check endpoint.
-
-    We use this to verify that the API server is running.
-    """
+def root(db: Session = Depends(get_db)):
     return {
-        "message": "Fuck you Niggaums"
+        "message": "GitHub Team Brain API",
+        "database": "Connected"
     }
+
+
+@app.post("/repositories")
+def create_repository(
+    repository: RepositoryCreate,
+    db: Session = Depends(get_db)
+):
+    new_repository = Repository(
+        name=repository.name,
+        owner=repository.owner,
+    )
+
+    db.add(new_repository)
+    db.commit()
+    db.refresh(new_repository)
+
+    return new_repository
+@app.get("/repositories")
+def get_repositories(db: Session = Depends(get_db)):
+    repositories = db.query(Repository).all()
+
+    return repositories
