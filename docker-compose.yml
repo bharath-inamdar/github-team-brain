@@ -1,32 +1,24 @@
-
 services:
   postgres:
     image: postgres:17
     container_name: gtb-postgres
-
     environment:
       POSTGRES_DB: github_team_brain
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-
     ports:
-      - "5432:5432"
-
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
     restart: unless-stopped
 
   chromadb:
     image: chromadb/chroma:latest
     container_name: gtb-chromadb
-
     ports:
       - "8001:8000"
-
     volumes:
       - chroma_data:/chroma/chroma
-
     restart: unless-stopped
 
 volumes:
