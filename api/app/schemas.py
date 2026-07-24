@@ -9,7 +9,11 @@ class RepositoryCreate(BaseModel):
     name: str
     owner: str
 
+class RepositoryUpdate(BaseModel):
+    name: str
+    owner: str
 
+    
 class RepositoryResponse(BaseModel):
     """
     Schema used when returning repository data to the client.
