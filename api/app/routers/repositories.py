@@ -1,34 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+from app.services import github_service
 from app.database import get_db
-from app.models import Repository
 from app.schemas import (
     RepositoryCreate,
     RepositoryUpdate,
     RepositoryResponse,
 )
+from app.services import repository_service
 
 router = APIRouter()
-
-
-def get_repository_or_404(
-    repository_id: int,
-    db: Session
-):
-    repository = (
-        db.query(Repository)
-        .filter(Repository.id == repository_id)
-        .first()
-    )
-
-    if repository is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Repository not found"
-        )
-
-    return repository
 
 
 @router.post(
@@ -39,16 +20,10 @@ def create_repository(
     repository: RepositoryCreate,
     db: Session = Depends(get_db)
 ):
-    new_repository = Repository(
-        name=repository.name,
-        owner=repository.owner,
+    return repository_service.create_repository(
+        repository,
+        db
     )
-
-    db.add(new_repository)
-    db.commit()
-    db.refresh(new_repository)
-
-    return new_repository
 
 
 @router.get(
@@ -58,8 +33,7 @@ def create_repository(
 def get_repositories(
     db: Session = Depends(get_db)
 ):
-    repositories = db.query(Repository).all()
-    return repositories
+    return repository_service.get_repositories(db)
 
 
 @router.get(
@@ -70,12 +44,10 @@ def get_repository(
     repository_id: int,
     db: Session = Depends(get_db)
 ):
-    repository = get_repository_or_404(
+    return repository_service.get_repository_or_404(
         repository_id,
         db
     )
-
-    return repository
 
 
 @router.put(
@@ -87,18 +59,11 @@ def update_repository(
     repository_update: RepositoryUpdate,
     db: Session = Depends(get_db)
 ):
-    repository = get_repository_or_404(
+    return repository_service.update_repository(
         repository_id,
+        repository_update,
         db
     )
-
-    repository.name = repository_update.name
-    repository.owner = repository_update.owner
-
-    db.commit()
-    db.refresh(repository)
-
-    return repository
 
 
 @router.delete("/repositories/{repository_id}")
@@ -106,14 +71,32 @@ def delete_repository(
     repository_id: int,
     db: Session = Depends(get_db)
 ):
-    repository = get_repository_or_404(
+    return repository_service.delete_repository(
         repository_id,
         db
     )
 
-    db.delete(repository)
-    db.commit()
+@router.get("/github/{owner}/{repo}")
+def fetch_github_repository(
+    owner: str,
+    repo: str
+):
+    return github_service.get_repository_details(
+        owner,
+        repo
+    )
 
-    return {
-        "message": "Repository deleted successfully"
-    }
+@router.post(
+    "/repositories/import/{owner}/{repo}",
+    response_model=RepositoryResponse,
+)
+def import_repository(
+    owner: str,
+    repo: str,
+    db: Session = Depends(get_db),
+):
+    return repository_service.import_repository_from_github(
+        owner,
+        repo,
+        db,
+    )
