@@ -8,6 +8,7 @@ from app.schemas import (
     RepositoryResponse,
 )
 from app.services import repository_service
+from app.services import issue_service
 
 router = APIRouter()
 
@@ -100,3 +101,24 @@ def import_repository(
         repo,
         db,
     )
+
+
+
+@router.post(
+    "/repositories/import/{owner}/{repo}/pull-requests",
+)
+def import_pull_requests(
+    owner: str,
+    repo: str,
+    db: Session = Depends(get_db),
+):
+    imported_count = issue_service.import_repository_pull_requests(
+        owner,
+        repo,
+        db,
+    )
+
+    return {
+        "message": "Pull requests imported successfully.",
+        "imported_count": imported_count,
+    }

@@ -1,6 +1,7 @@
 from app.clients.github_client import (
     get_repository,
     get_repository_issues,
+    get_repository_pull_requests,
 )
 
 def get_repository_details(
@@ -60,3 +61,30 @@ def get_repository_issue_details(
         )
 
     return cleaned_issues
+
+
+def get_repository_pull_request_details(owner: str, repo: str):
+    """
+    Fetch pull requests and keep only the fields
+    needed by TeamBrain.
+    """
+
+    github_pull_requests = get_repository_pull_requests(owner, repo)
+
+    cleaned_pull_requests = []
+
+    for pr in github_pull_requests:
+        cleaned_pull_requests.append(
+            {
+                "github_pr_number": pr["number"],
+                "title": pr["title"],
+                "body": pr["body"],
+                "state": pr["state"],
+                "author": pr["user"]["login"],
+                "created_at": pr["created_at"],
+                "merged_at": pr["merged_at"],
+                "closed_at": pr["closed_at"],
+            }
+        )
+
+    return cleaned_pull_requests

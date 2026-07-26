@@ -26,3 +26,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+from app.models import Base
+
+
+if __name__ == "__main__":
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created successfully!")

@@ -1,4 +1,11 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    ForeignKey,
+    Text,
+    DateTime,
+)
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -29,6 +36,11 @@ class Repository(Base):
         back_populates="repository",
         cascade="all, delete-orphan",
     )
+    pull_requests = relationship(
+        "PullRequest",
+        back_populates="repository",
+        cascade="all, delete-orphan",
+    )
 
 
 class Issue(Base):
@@ -55,4 +67,37 @@ class Issue(Base):
     repository = relationship(
         "Repository",
         back_populates="issues",
+    )
+
+
+class PullRequest(Base):
+    __tablename__ = "pull_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    repository_id = Column(
+        Integer,
+        ForeignKey("repositories.id"),
+        nullable=False,
+    )
+
+    github_pr_number = Column(Integer, nullable=False)
+
+    title = Column(String, nullable=False)
+
+    body = Column(Text)
+
+    state = Column(String, nullable=False)
+
+    author = Column(String)
+
+    created_at = Column(DateTime)
+
+    merged_at = Column(DateTime)
+
+    closed_at = Column(DateTime)
+
+    repository = relationship(
+        "Repository",
+        back_populates="pull_requests",
     )

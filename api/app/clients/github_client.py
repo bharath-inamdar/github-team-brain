@@ -35,3 +35,23 @@ def get_repository_issues(
     response.raise_for_status()
 
     return response.json()
+
+
+def get_repository_pull_requests(
+    owner: str,
+    repo: str,
+):
+    """
+    Fetch all pull requests for a GitHub repository.
+    """
+
+    url = (
+        f"{GITHUB_API_BASE_URL}"
+        f"/repos/{owner}/{repo}/pulls"
+        "?state=all&per_page=100"
+    )
+
+    response = requests.get(url)
+    response.raise_for_status()
+
+    return response.json()
