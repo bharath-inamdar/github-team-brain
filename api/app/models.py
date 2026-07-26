@@ -1,4 +1,5 @@
 from sqlalchemy import (
+    BigInteger,
     Column,
     Integer,
     String,
@@ -97,7 +98,44 @@ class PullRequest(Base):
 
     closed_at = Column(DateTime)
 
+    reviews = relationship(
+    "PullRequestReview",
+    back_populates="pull_request",
+    cascade="all, delete-orphan",
+    )
+
     repository = relationship(
         "Repository",
         back_populates="pull_requests",
+    )
+
+
+class PullRequestReview(Base):
+    __tablename__ = "pull_request_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    pull_request_id = Column(
+        Integer,
+        ForeignKey("pull_requests.id"),
+        nullable=False,
+    )
+
+    github_review_id = Column(
+        BigInteger,
+        nullable=False,
+        unique=True,
+    )
+
+    reviewer = Column(String)
+
+    state = Column(String)
+
+    body = Column(Text)
+
+    submitted_at = Column(DateTime)
+
+    pull_request = relationship(
+        "PullRequest",
+        back_populates="reviews",
     )

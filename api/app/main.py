@@ -43,3 +43,5 @@ def root(db: Session = Depends(get_db)):
         "message": "GitHub Team Brain API",
         "database": "Connected"
     }
+
+print("GitHub Token Loaded:", settings.github_token is not None)

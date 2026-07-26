@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.services import github_service
+from app.services import issue_service
+from app.services import pull_request_service
 from app.database import get_db
 from app.schemas import (
     RepositoryCreate,
@@ -9,6 +10,7 @@ from app.schemas import (
 )
 from app.services import repository_service
 from app.services import issue_service
+from app.services import review_service
 
 router = APIRouter()
 
@@ -112,7 +114,7 @@ def import_pull_requests(
     repo: str,
     db: Session = Depends(get_db),
 ):
-    imported_count = issue_service.import_repository_pull_requests(
+    imported_count = pull_request_service.import_repository_pull_requests(
         owner,
         repo,
         db,
@@ -120,5 +122,27 @@ def import_pull_requests(
 
     return {
         "message": "Pull requests imported successfully.",
+        "imported_count": imported_count,
+    }
+
+
+@router.post(
+    "/repositories/import/{owner}/{repo}/reviews",
+)
+def import_reviews(
+    owner: str,
+    repo: str,
+    db: Session = Depends(get_db),
+):
+    imported_count = (
+        review_service.import_pull_request_reviews(
+            owner,
+            repo,
+            db,
+        )
+    )
+
+    return {
+        "message": "Reviews imported successfully.",
         "imported_count": imported_count,
     }

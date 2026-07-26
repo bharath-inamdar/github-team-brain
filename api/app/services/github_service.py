@@ -2,6 +2,7 @@ from app.clients.github_client import (
     get_repository,
     get_repository_issues,
     get_repository_pull_requests,
+    get_pull_request_reviews,
 )
 
 def get_repository_details(
@@ -88,3 +89,36 @@ def get_repository_pull_request_details(owner: str, repo: str):
         )
 
     return cleaned_pull_requests
+
+
+
+def get_pull_request_review_details(
+    owner: str,
+    repo: str,
+    pull_request_number: int,
+):
+    """
+    Fetch pull request reviews and keep only the
+    fields needed by TeamBrain.
+    """
+
+    github_reviews = get_pull_request_reviews(
+        owner,
+        repo,
+        pull_request_number,
+    )
+
+    cleaned_reviews = []
+
+    for review in github_reviews:
+        cleaned_reviews.append(
+            {
+                "github_review_id": review["id"],
+                "reviewer": review["user"]["login"],
+                "state": review["state"],
+                "body": review["body"],
+                "submitted_at": review["submitted_at"],
+            }
+        )
+
+    return cleaned_reviews
