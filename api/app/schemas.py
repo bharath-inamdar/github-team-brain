@@ -52,3 +52,35 @@ class RepositoryResponse(BaseModel):
     default_branch: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class IssueCreate(BaseModel):
+    repository_id: int
+
+    github_issue_number: int
+
+    title: str
+
+    body: str | None = None
+
+    state: str
+
+    author: str
+
+
+class IssueResponse(BaseModel):
+    id: int
+
+    repository_id: int
+
+    github_issue_number: int
+
+    title: str
+
+    body: str | None
+
+    state: str
+
+    author: str
+
+    model_config = ConfigDict(from_attributes=True)

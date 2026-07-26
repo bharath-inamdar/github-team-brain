@@ -15,3 +15,23 @@ def get_repository(owner: str, repo: str):
     response.raise_for_status()
 
     return response.json()
+
+
+def get_repository_issues(
+    owner: str,
+    repo: str,
+):
+    """
+    Fetch all issues for a GitHub repository.
+    """
+
+    url = (
+    f"{GITHUB_API_BASE_URL}"
+    f"/repos/{owner}/{repo}/issues"
+    "?per_page=100"
+)
+
+    response = requests.get(url)
+    response.raise_for_status()
+
+    return response.json()
