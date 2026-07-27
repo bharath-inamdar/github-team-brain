@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 
-from app.routers.health import router as health_router
-from app.routers.repositories import router as repositories_router
-
 from app.core.config import settings
 from app.database import engine, get_db
 from app.models import Base
+
+from app.routers.health import router as health_router
+from app.routers.repositories import router as repositories_router
+from app.routers.ai import router as ai_router
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
@@ -14,8 +15,7 @@ from sqlalchemy.orm import Session
 # Create all database tables
 Base.metadata.create_all(bind=engine)
 
-# Create the FastAPI application.
-# Every incoming request starts here.
+# Create the FastAPI application
 app = FastAPI(
     title=settings.app_name,
     description="Backend API for GitHub Team Brain",
@@ -26,14 +26,21 @@ app = FastAPI(
 app.include_router(
     health_router,
     prefix="/api/v1",
-    tags=["Health"]
+    tags=["Health"],
 )
 
 # Register Repository routes
 app.include_router(
     repositories_router,
     prefix="/api/v1",
-    tags=["Repositories"]
+    tags=["Repositories"],
+)
+
+# Register AI routes
+app.include_router(
+    ai_router,
+    prefix="/api/v1",
+    tags=["AI"],
 )
 
 
@@ -41,7 +48,8 @@ app.include_router(
 def root(db: Session = Depends(get_db)):
     return {
         "message": "GitHub Team Brain API",
-        "database": "Connected"
+        "database": "Connected",
     }
+
 
 print("GitHub Token Loaded:", settings.github_token is not None)
