@@ -101,3 +101,13 @@ def ask_repository(
     )
 
     return result
+
+@router.get("/ai/repository-summary")
+def repository_summary(
+    db: Session = Depends(get_db),
+):
+    ingestion_service = IngestionService()
+
+    return ingestion_service.summarize_repository(
+        db=db,
+    )

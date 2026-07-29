@@ -40,18 +40,16 @@ class VectorService:
     def search_reviews(
         self,
         query_embedding: list[float],
+        repository_id: int,
         top_k: int = 5,
     ):
-        """
-        Searches ChromaDB for the most similar reviews.
-        """
-
-        results = self.collection.query(
+        return self.collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
+            where={
+                "repository_id": repository_id,
+            },
         )
-
-        return results
 
     def review_exists(
         self,
