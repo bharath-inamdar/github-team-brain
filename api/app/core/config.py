@@ -14,11 +14,17 @@ class Settings(BaseSettings):
 
     database_url: str
     github_token: str | None = None
+    github_request_timeout_seconds: float = 15.0
     gemini_api_key: str
+    gemini_model: str = "models/gemini-3.6-flash"
+    gemini_embedding_model: str = "gemini-embedding-001"
+    chroma_host: str = "localhost"
+    chroma_port: int = 8001
+    chroma_collection_name: str = "teambrain"
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"
+        extra="ignore",
     )
 
 

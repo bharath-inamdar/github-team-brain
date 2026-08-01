@@ -1,20 +1,19 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.database import engine, get_db
-from app.models import Base
 
 from app.routers.health import router as health_router
 from app.routers.repositories import router as repositories_router
 from app.routers.ai import router as ai_router
 
-from fastapi import Depends
-from sqlalchemy.orm import Session
-
-
-# Create all database tables
-Base.metadata.create_all(bind=engine)
+logging.basicConfig(
+    level=logging.DEBUG if settings.debug else logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 # Create the FastAPI application
 app = FastAPI(
@@ -57,11 +56,14 @@ app.include_router(
 
 
 @app.get("/")
-def root(db: Session = Depends(get_db)):
+def root():
     return {
         "message": "GitHub Team Brain API",
         "database": "Connected",
     }
 
 
-print("GitHub Token Loaded:", settings.github_token is not None)
+logger.info(
+    "Application configured",
+    extra={"github_token_configured": settings.github_token is not None},
+)

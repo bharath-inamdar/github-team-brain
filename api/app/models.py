@@ -1,12 +1,15 @@
 from sqlalchemy import (
     BigInteger,
     Column,
+    DateTime,
     Integer,
     String,
     ForeignKey,
     Text,
-    DateTime,
+    UniqueConstraint,
 )
+from datetime import datetime
+
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -16,6 +19,9 @@ class Base(DeclarativeBase):
 
 class Repository(Base):
     __tablename__ = "repositories"
+    __table_args__ = (
+        UniqueConstraint("owner", "name", name="uq_repository_owner_name"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 
@@ -46,6 +52,13 @@ class Repository(Base):
 
 class Issue(Base):
     __tablename__ = "issues"
+    __table_args__ = (
+        UniqueConstraint(
+            "repository_id",
+            "github_issue_number",
+            name="uq_issue_repository_number",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 
@@ -73,6 +86,13 @@ class Issue(Base):
 
 class PullRequest(Base):
     __tablename__ = "pull_requests"
+    __table_args__ = (
+        UniqueConstraint(
+            "repository_id",
+            "github_pr_number",
+            name="uq_pull_request_repository_number",
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 
@@ -99,9 +119,15 @@ class PullRequest(Base):
     closed_at = Column(DateTime)
 
     reviews = relationship(
-    "PullRequestReview",
-    back_populates="pull_request",
-    cascade="all, delete-orphan",
+        "PullRequestReview",
+        back_populates="pull_request",
+        cascade="all, delete-orphan",
+    )
+
+    review_comments = relationship(
+        "PullRequestReviewComment",
+        back_populates="pull_request",
+        cascade="all, delete-orphan",
     )
 
     repository = relationship(
@@ -141,8 +167,40 @@ class PullRequestReview(Base):
     )
 
 
-from sqlalchemy import DateTime
-from datetime import datetime
+class PullRequestReviewComment(Base):
+    __tablename__ = "pull_request_review_comments"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    pull_request_id = Column(
+        Integer,
+        ForeignKey("pull_requests.id"),
+        nullable=False,
+    )
+
+    github_comment_id = Column(
+        BigInteger,
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    reviewer = Column(String, nullable=True)
+
+    body = Column(Text, nullable=True)
+
+    path = Column(String, nullable=True)
+
+    line = Column(Integer, nullable=True)
+
+    created_at = Column(DateTime, nullable=True)
+
+    updated_at = Column(DateTime, nullable=True)
+
+    pull_request = relationship(
+        "PullRequest",
+        back_populates="review_comments",
+    )
 
 class SyncState(Base):
     __tablename__ = "sync_state"

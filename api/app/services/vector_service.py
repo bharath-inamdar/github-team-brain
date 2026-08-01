@@ -1,5 +1,7 @@
 import chromadb
 
+from app.core.config import settings
+
 
 class VectorService:
     """
@@ -9,13 +11,13 @@ class VectorService:
     def __init__(self):
         # Connect to the ChromaDB server running in Docker.
         self.client = chromadb.HttpClient(
-            host="localhost",
-            port=8001,
+            host=settings.chroma_host,
+            port=settings.chroma_port,
         )
 
         # Create the collection if it doesn't exist.
         self.collection = self.client.get_or_create_collection(
-            name="teambrain"
+            name=settings.chroma_collection_name
         )
 
     def add_review(
@@ -40,15 +42,19 @@ class VectorService:
     def search_reviews(
         self,
         query_embedding: list[float],
-        repository_id: int,
+        repository_id: int | None = None,
         top_k: int = 5,
     ):
+        query_arguments = {
+            "query_embeddings": [query_embedding],
+            "n_results": top_k,
+        }
+
+        if repository_id is not None:
+            query_arguments["where"] = {"repository_id": repository_id}
+
         return self.collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k,
-            where={
-                "repository_id": repository_id,
-            },
+            **query_arguments,
         )
 
     def review_exists(

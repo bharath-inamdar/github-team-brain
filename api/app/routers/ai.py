@@ -58,6 +58,7 @@ def index_review(
 @router.get("/ai/search")
 def search_reviews(
     question: str,
+    repository_id: int | None = None,
 ):
     """
     Search similar pull request reviews.
@@ -66,7 +67,8 @@ def search_reviews(
     ingestion_service = IngestionService()
 
     results = ingestion_service.search_reviews(
-        question
+        question,
+        repository_id=repository_id,
     )
 
     return results
@@ -89,6 +91,7 @@ def index_all_reviews(
 @router.get("/ai/ask")
 def ask_repository(
     question: str,
+    repository_id: int | None = None,
 ):
     """
     Ask TeamBrain a question about the repository.
@@ -97,7 +100,8 @@ def ask_repository(
     ingestion_service = IngestionService()
 
     result = ingestion_service.ask_repository(
-        question
+        question,
+        repository_id=repository_id,
     )
 
     return result

@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm import Session
 from app.core.config import settings
 
 engine = create_engine(
@@ -33,4 +32,3 @@ from app.models import Base
 
 if __name__ == "__main__":
     Base.metadata.create_all(bind=engine)
-    print("Database tables created successfully!")

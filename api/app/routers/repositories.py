@@ -9,7 +9,6 @@ from app.schemas import (
 )
 from app.services import (
     github_service,
-    issue_service,
     pull_request_service,
     repository_service,
     review_service,
@@ -146,5 +145,25 @@ def import_reviews(
 
     return {
         "message": "Reviews imported successfully.",
+        "imported_count": imported_count,
+    }
+
+
+@router.post(
+    "/repositories/import/{owner}/{repo}/review-comments",
+)
+def import_review_comments(
+    owner: str,
+    repo: str,
+    db: Session = Depends(get_db),
+):
+    imported_count = review_service.import_pull_request_review_comments(
+        owner,
+        repo,
+        db,
+    )
+
+    return {
+        "message": "Review comments imported successfully.",
         "imported_count": imported_count,
     }

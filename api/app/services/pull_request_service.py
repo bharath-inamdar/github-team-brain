@@ -1,9 +1,14 @@
+import logging
+
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import models
 from app.services.github_service import (
     get_repository_pull_request_details,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def import_repository_pull_requests(
@@ -25,8 +30,9 @@ def import_repository_pull_requests(
     )
 
     if repository is None:
-        raise ValueError(
-            "Repository not found. Import the repository first."
+        raise HTTPException(
+            status_code=404,
+            detail="Repository not found. Import the repository first.",
         )
 
     github_pull_requests = (
@@ -36,7 +42,10 @@ def import_repository_pull_requests(
         )
     )
 
-    print(f"Found {len(github_pull_requests)} pull requests")
+    logger.info(
+        "Fetched pull requests from GitHub",
+        extra={"count": len(github_pull_requests)},
+    )
 
     imported_count = 0
 
@@ -72,6 +81,9 @@ def import_repository_pull_requests(
 
     db.commit()
 
-    print(f"Imported {imported_count} pull requests")
+    logger.info(
+        "Imported pull requests",
+        extra={"imported_count": imported_count},
+    )
 
     return imported_count

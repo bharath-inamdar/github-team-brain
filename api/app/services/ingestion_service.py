@@ -1,8 +1,12 @@
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.models import PullRequestReview
 from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
+
+logger = logging.getLogger(__name__)
 
 
 class IngestionService:
@@ -75,6 +79,13 @@ class IngestionService:
             review_id=review.github_review_id,
             review_text=review.body,
             embedding=embedding,
+            metadata={
+                "repository_id": review.pull_request.repository_id,
+                "reviewer": review.reviewer or "",
+                "state": review.state or "",
+                "review_id": review.github_review_id,
+                "pull_request_id": review.pull_request_id,
+            },
         )
 
         return f"Indexed review {review.github_review_id}"
@@ -145,6 +156,7 @@ class IngestionService:
     def search_reviews(
         self,
         question: str,
+        repository_id: int | None = None,
     ):
         """
         Searches indexed reviews using semantic similarity.
@@ -155,19 +167,24 @@ class IngestionService:
         )
 
         return self.vector_service.search_reviews(
-            embedding
+            embedding,
+            repository_id=repository_id,
         )
 
     def ask_repository(
         self,
         question: str,
+        repository_id: int | None = None,
     ):
         """
         Answers a question about the repository
         using semantic search.
         """
 
-        search_results = self.search_reviews(question)
+        search_results = self.search_reviews(
+            question,
+            repository_id=repository_id,
+        )
 
         documents = search_results.get("documents", [[]])[0]
 
@@ -214,9 +231,10 @@ class IngestionService:
 
         context = "\n\n".join(review_texts)
 
-        print("\n========== CLEAN REVIEW CONTEXT ==========\n")
-        print(context)
-        print("\n==========================================\n")
+        logger.info(
+            "Prepared repository summary context",
+            extra={"review_count": len(review_texts)},
+        )
 
         if not context.strip():
             return {
