@@ -47,21 +47,22 @@ def import_repository_pull_requests(
         extra={"count": len(github_pull_requests)},
     )
 
+    existing_pull_request_numbers = {
+        pull_request_number
+        for (pull_request_number,) in (
+            db.query(models.PullRequest.github_pr_number)
+            .filter(
+                models.PullRequest.repository_id == repository.id,
+            )
+            .all()
+        )
+    }
+
     imported_count = 0
 
     for pr in github_pull_requests:
 
-        existing_pr = (
-            db.query(models.PullRequest)
-            .filter(
-                models.PullRequest.repository_id == repository.id,
-                models.PullRequest.github_pr_number
-                == pr["github_pr_number"],
-            )
-            .first()
-        )
-
-        if existing_pr:
+        if pr["github_pr_number"] in existing_pull_request_numbers:
             continue
 
         new_pr = models.PullRequest(
@@ -77,6 +78,7 @@ def import_repository_pull_requests(
         )
 
         db.add(new_pr)
+        existing_pull_request_numbers.add(pr["github_pr_number"])
         imported_count += 1
 
     db.commit()

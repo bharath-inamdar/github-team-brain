@@ -44,23 +44,24 @@ def import_repository_issues(
         extra={"count": len(github_issues)},
     )
 
+    existing_issue_numbers = {
+        issue_number
+        for (issue_number,) in (
+            db.query(models.Issue.github_issue_number)
+            .filter(
+                models.Issue.repository_id == repository.id,
+            )
+            .all()
+        )
+    }
+
     imported_count = 0
 
     # Import each issue
     for issue in github_issues:
 
         # Skip if this issue already exists
-        existing_issue = (
-            db.query(models.Issue)
-            .filter(
-                models.Issue.repository_id == repository.id,
-                models.Issue.github_issue_number
-                == issue["github_issue_number"],
-            )
-            .first()
-        )
-
-        if existing_issue:
+        if issue["github_issue_number"] in existing_issue_numbers:
             continue
 
         # Create a new Issue ORM object
@@ -74,6 +75,7 @@ def import_repository_issues(
         )
 
         db.add(new_issue)
+        existing_issue_numbers.add(issue["github_issue_number"])
         imported_count += 1
 
     # Save all new issues in one transaction

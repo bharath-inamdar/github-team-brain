@@ -43,6 +43,13 @@ def import_pull_request_reviews(
         .all()
     )
 
+    existing_review_ids = {
+        review_id
+        for (review_id,) in (
+            db.query(models.PullRequestReview.github_review_id).all()
+        )
+    }
+
     imported_count = 0
 
     try:
@@ -69,16 +76,7 @@ def import_pull_request_reviews(
                     )
                     continue
 
-                existing_review = (
-                    db.query(models.PullRequestReview)
-                    .filter(
-                        models.PullRequestReview.github_review_id
-                        == github_review_id
-                    )
-                    .first()
-                )
-
-                if existing_review:
+                if github_review_id in existing_review_ids:
                     continue
 
                 new_review = models.PullRequestReview(
@@ -91,6 +89,7 @@ def import_pull_request_reviews(
                 )
 
                 db.add(new_review)
+                existing_review_ids.add(github_review_id)
                 imported_count += 1
 
             db.commit()
@@ -178,6 +177,13 @@ def import_pull_request_review_comments(
         .all()
     )
 
+    existing_comment_ids = {
+        comment_id
+        for (comment_id,) in (
+            db.query(models.PullRequestReviewComment.github_comment_id).all()
+        )
+    }
+
     imported_count = 0
 
     try:
@@ -204,16 +210,7 @@ def import_pull_request_review_comments(
                     )
                     continue
 
-                existing_review_comment = (
-                    db.query(models.PullRequestReviewComment)
-                    .filter(
-                        models.PullRequestReviewComment.github_comment_id
-                        == github_comment_id
-                    )
-                    .first()
-                )
-
-                if existing_review_comment:
+                if github_comment_id in existing_comment_ids:
                     continue
 
                 new_review_comment = models.PullRequestReviewComment(
@@ -228,6 +225,7 @@ def import_pull_request_review_comments(
                 )
 
                 db.add(new_review_comment)
+                existing_comment_ids.add(github_comment_id)
                 imported_count += 1
 
             db.commit()
