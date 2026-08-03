@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.database import get_db
 from app.core.security import verify_api_key
 from app.services.ai_service import AIService
@@ -9,16 +10,31 @@ from app.services.ingestion_service import IngestionService
 
 router = APIRouter(dependencies=[Depends(verify_api_key)])
 
-ai_service = AIService()
-vector_service = VectorService()
+
+def _get_ai_service() -> AIService:
+    return AIService()
 
 
-@router.get("/ai/embedding-test")
+def _get_vector_service() -> VectorService:
+    return VectorService()
+
+
+def _require_debug_mode() -> None:
+    if not settings.debug:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not found",
+        )
+
+
+@router.get("/ai/embedding-test", include_in_schema=False)
 def test_embedding():
     """
     Generate an embedding using Gemini and verify it works.
     """
-    embedding = ai_service.generate_embedding(
+    _require_debug_mode()
+
+    embedding = _get_ai_service().generate_embedding(
         "FastAPI is a modern Python web framework."
     )
 
@@ -28,11 +44,15 @@ def test_embedding():
     }
 
 
-@router.get("/ai/chroma-test")
+@router.get("/ai/chroma-test", include_in_schema=False)
 def test_chromadb():
     """
     Verify ChromaDB connection.
     """
+    _require_debug_mode()
+
+    vector_service = _get_vector_service()
+
     return {
         "collection_name": vector_service.collection.name,
         "document_count": vector_service.collection.count(),
