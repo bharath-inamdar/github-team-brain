@@ -11,12 +11,16 @@ from app.services.ingestion_service import IngestionService
 router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 
-def _get_ai_service() -> AIService:
+def get_ai_service() -> AIService:
     return AIService()
 
 
-def _get_vector_service() -> VectorService:
+def get_vector_service() -> VectorService:
     return VectorService()
+
+
+def get_ingestion_service() -> IngestionService:
+    return IngestionService()
 
 
 def _require_debug_mode() -> None:
@@ -28,13 +32,15 @@ def _require_debug_mode() -> None:
 
 
 @router.get("/ai/embedding-test", include_in_schema=False)
-def test_embedding():
+def test_embedding(
+    ai_service: AIService = Depends(get_ai_service),
+):
     """
     Generate an embedding using Gemini and verify it works.
     """
     _require_debug_mode()
 
-    embedding = _get_ai_service().generate_embedding(
+    embedding = ai_service.generate_embedding(
         "FastAPI is a modern Python web framework."
     )
 
@@ -45,13 +51,13 @@ def test_embedding():
 
 
 @router.get("/ai/chroma-test", include_in_schema=False)
-def test_chromadb():
+def test_chromadb(
+    vector_service: VectorService = Depends(get_vector_service),
+):
     """
     Verify ChromaDB connection.
     """
     _require_debug_mode()
-
-    vector_service = _get_vector_service()
 
     return {
         "collection_name": vector_service.collection.name,
@@ -63,12 +69,11 @@ def test_chromadb():
 @router.post("/ai/index-review")
 def index_review(
     db: Session = Depends(get_db),
+    ingestion_service: IngestionService = Depends(get_ingestion_service),
 ):
     """
     Index the first pull request review from PostgreSQL into ChromaDB.
     """
-    ingestion_service = IngestionService()
-
     result = ingestion_service.index_first_review(db)
 
     return {
@@ -80,12 +85,11 @@ def index_review(
 def search_reviews(
     question: str,
     repository_id: int | None = None,
+    ingestion_service: IngestionService = Depends(get_ingestion_service),
 ):
     """
     Search similar pull request reviews.
     """
-
-    ingestion_service = IngestionService()
 
     results = ingestion_service.search_reviews(
         question,
@@ -98,12 +102,11 @@ def search_reviews(
 @router.post("/ai/index-all-reviews")
 def index_all_reviews(
     db: Session = Depends(get_db),
+    ingestion_service: IngestionService = Depends(get_ingestion_service),
 ):
     """
     Index all pull request reviews into ChromaDB.
     """
-
-    ingestion_service = IngestionService()
 
     result = ingestion_service.index_all_reviews(db)
 
@@ -113,12 +116,11 @@ def index_all_reviews(
 def ask_repository(
     question: str,
     repository_id: int | None = None,
+    ingestion_service: IngestionService = Depends(get_ingestion_service),
 ):
     """
     Ask TeamBrain a question about the repository.
     """
-
-    ingestion_service = IngestionService()
 
     result = ingestion_service.ask_repository(
         question,
@@ -130,9 +132,8 @@ def ask_repository(
 @router.get("/ai/repository-summary")
 def repository_summary(
     db: Session = Depends(get_db),
+    ingestion_service: IngestionService = Depends(get_ingestion_service),
 ):
-    ingestion_service = IngestionService()
-
     return ingestion_service.summarize_repository(
         db=db,
     )
