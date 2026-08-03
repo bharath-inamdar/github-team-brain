@@ -4,6 +4,15 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.database import get_db
 from app.core.security import verify_api_key
+from app.schemas import (
+    AIChromaTestResponse,
+    AIAskRepositoryResponse,
+    AIEmbeddingTestResponse,
+    AIIndexAllReviewsResponse,
+    AIMessageResponse,
+    AIRepositorySummaryResponse,
+    AISearchReviewsResponse,
+)
 from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
 from app.services.ingestion_service import IngestionService
@@ -31,7 +40,11 @@ def _require_debug_mode() -> None:
         )
 
 
-@router.get("/ai/embedding-test", include_in_schema=False)
+@router.get(
+    "/ai/embedding-test",
+    include_in_schema=False,
+    response_model=AIEmbeddingTestResponse,
+)
 def test_embedding(
     ai_service: AIService = Depends(get_ai_service),
 ):
@@ -50,7 +63,11 @@ def test_embedding(
     }
 
 
-@router.get("/ai/chroma-test", include_in_schema=False)
+@router.get(
+    "/ai/chroma-test",
+    include_in_schema=False,
+    response_model=AIChromaTestResponse,
+)
 def test_chromadb(
     vector_service: VectorService = Depends(get_vector_service),
 ):
@@ -66,7 +83,7 @@ def test_chromadb(
     }
 
 
-@router.post("/ai/index-review")
+@router.post("/ai/index-review", response_model=AIMessageResponse)
 def index_review(
     db: Session = Depends(get_db),
     ingestion_service: IngestionService = Depends(get_ingestion_service),
@@ -81,7 +98,7 @@ def index_review(
     }
 
 
-@router.get("/ai/search")
+@router.get("/ai/search", response_model=AISearchReviewsResponse)
 def search_reviews(
     question: str,
     repository_id: int | None = None,
@@ -99,7 +116,7 @@ def search_reviews(
     return results
 
 
-@router.post("/ai/index-all-reviews")
+@router.post("/ai/index-all-reviews", response_model=AIIndexAllReviewsResponse)
 def index_all_reviews(
     db: Session = Depends(get_db),
     ingestion_service: IngestionService = Depends(get_ingestion_service),
@@ -112,7 +129,7 @@ def index_all_reviews(
 
     return result
 
-@router.get("/ai/ask")
+@router.get("/ai/ask", response_model=AIAskRepositoryResponse)
 def ask_repository(
     question: str,
     repository_id: int | None = None,
@@ -129,7 +146,7 @@ def ask_repository(
 
     return result
 
-@router.get("/ai/repository-summary")
+@router.get("/ai/repository-summary", response_model=AIRepositorySummaryResponse)
 def repository_summary(
     db: Session = Depends(get_db),
     ingestion_service: IngestionService = Depends(get_ingestion_service),

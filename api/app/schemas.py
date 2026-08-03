@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, RootModel
 
 
 class RepositoryCreate(BaseModel):
@@ -84,3 +86,42 @@ class IssueResponse(BaseModel):
     author: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AIEmbeddingTestResponse(BaseModel):
+    dimensions: int
+    first_10_values: list[float]
+
+
+class AIChromaTestResponse(BaseModel):
+    collection_name: str
+    document_count: int
+    status: str
+
+
+class AIMessageResponse(BaseModel):
+    message: str
+
+
+class AIIndexAllReviewsResponse(BaseModel):
+    total_reviews: int
+    indexed: int
+    skipped_empty: int
+    skipped_short: int
+    skipped_bot: int
+    skipped_existing: int
+
+
+class AISearchReviewsResponse(RootModel[dict[str, Any]]):
+    pass
+
+
+class AIAskRepositoryResponse(BaseModel):
+    question: str
+    answer: str
+    sources: list[str]
+
+
+class AIRepositorySummaryResponse(BaseModel):
+    total_reviews: int
+    summary: str
