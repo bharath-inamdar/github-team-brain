@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.core.security import verify_api_key
 from app.schemas import (
     RepositoryCreate,
     RepositoryUpdate,
@@ -74,6 +75,7 @@ def update_repository(
 @router.delete("/repositories/{repository_id}")
 def delete_repository(
     repository_id: int,
+    _: None = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ):
     return repository_service.delete_repository(
@@ -100,6 +102,7 @@ def fetch_github_repository(
 def import_repository(
     owner: str,
     repo: str,
+    _: None = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ):
     return repository_service.import_repository_from_github(
@@ -115,6 +118,7 @@ def import_repository(
 def import_pull_requests(
     owner: str,
     repo: str,
+    _: None = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ):
     imported_count = pull_request_service.import_repository_pull_requests(
@@ -135,6 +139,7 @@ def import_pull_requests(
 def import_reviews(
     owner: str,
     repo: str,
+    _: None = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ):
     imported_count = review_service.import_pull_request_reviews(
@@ -155,6 +160,7 @@ def import_reviews(
 def import_review_comments(
     owner: str,
     repo: str,
+    _: None = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ):
     imported_count = review_service.import_pull_request_review_comments(

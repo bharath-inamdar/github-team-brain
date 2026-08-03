@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.core.security import verify_api_key
 from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
 from app.services.ingestion_service import IngestionService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 ai_service = AIService()
 vector_service = VectorService()

@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     chroma_host: str = "localhost"
     chroma_port: int = 8001
     chroma_collection_name: str = "teambrain"
+    api_key: str
 
     model_config = SettingsConfigDict(
         env_file=".env",
