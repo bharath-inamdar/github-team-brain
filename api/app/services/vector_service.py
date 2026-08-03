@@ -32,7 +32,9 @@ class VectorService:
         and metadata inside ChromaDB.
         """
 
-        self.collection.add(
+        # Use upsert so repeated indexing updates the stored review in place
+        # instead of failing on duplicate IDs during concurrent or retried runs.
+        self.collection.upsert(
             ids=[str(review_id)],
             documents=[review_text],
             embeddings=[embedding],
