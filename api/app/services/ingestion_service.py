@@ -8,6 +8,8 @@ from app.services.vector_service import VectorService
 
 logger = logging.getLogger(__name__)
 
+MAX_SUMMARY_CONTEXT_CHARS = 40000
+
 
 class IngestionService:
     """
@@ -216,6 +218,9 @@ class IngestionService:
         )
 
         review_texts = []
+        included_reviews = 0
+        skipped_reviews = 0
+        context_characters = 0
 
         for review in reviews:
 
@@ -227,13 +232,28 @@ class IngestionService:
             if not self._is_useful_review(review_text):
                 continue
 
+            review_length = len(review_text)
+
+            if review_texts:
+                review_length += 2
+
+            if context_characters + review_length > MAX_SUMMARY_CONTEXT_CHARS:
+                skipped_reviews += 1
+                break
+
             review_texts.append(review_text)
+            included_reviews += 1
+            context_characters += review_length
 
         context = "\n\n".join(review_texts)
 
         logger.info(
             "Prepared repository summary context",
-            extra={"review_count": len(review_texts)},
+            extra={
+                "included_reviews": included_reviews,
+                "skipped_reviews": skipped_reviews,
+                "context_characters": context_characters,
+            },
         )
 
         if not context.strip():
