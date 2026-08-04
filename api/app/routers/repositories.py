@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -37,9 +37,15 @@ def create_repository(
     response_model=list[RepositoryResponse],
 )
 def get_repositories(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, gt=0, le=100),
     db: Session = Depends(get_db),
 ):
-    return repository_service.get_repositories(db)
+    return repository_service.get_repositories(
+        db,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get(

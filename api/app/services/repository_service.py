@@ -33,8 +33,15 @@ def create_repository(
 
 def get_repositories(
     db: Session,
+    skip: int = 0,
+    limit: int = 20,
 ):
-    return db.query(Repository).all()
+    return (
+        db.query(Repository)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 
 def get_repository_or_404(
