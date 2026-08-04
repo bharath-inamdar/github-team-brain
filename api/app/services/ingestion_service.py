@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from app.models import PullRequestReview
+from app.models import PullRequestReview, PullRequestReviewComment
 from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
 
@@ -208,50 +208,53 @@ class IngestionService:
         db: Session,
     ):
         """
-        Generates a repository engineering summary using only useful reviews.
+        Generates a repository engineering summary using only useful review comments.
         """
 
-        reviews = (
-            db.query(PullRequestReview)
-            .filter(PullRequestReview.body.isnot(None))
+        comments = (
+            db.query(PullRequestReviewComment)
+            .filter(PullRequestReviewComment.body.isnot(None))
+            .filter(PullRequestReviewComment.body != "")
             .all()
         )
 
-        review_texts = []
-        included_reviews = 0
-        skipped_reviews = 0
+        comment_texts = []
+        included_comments = 0
+        skipped_comments = 0
         context_characters = 0
 
-        for review in reviews:
+        for comment in comments:
 
-            if not review.body:
+            if not comment.body:
                 continue
 
-            review_text = review.body.strip()
+            comment_text = comment.body.strip()
 
-            if not self._is_useful_review(review_text):
+            if not self._is_useful_review(comment_text):
+                skipped_comments += 1
                 continue
 
-            review_length = len(review_text)
+            comment_length = len(comment_text)
 
-            if review_texts:
-                review_length += 2
+            if comment_texts:
+                comment_length += 2
 
-            if context_characters + review_length > MAX_SUMMARY_CONTEXT_CHARS:
-                skipped_reviews += 1
+            if context_characters + comment_length > MAX_SUMMARY_CONTEXT_CHARS:
+                skipped_comments += 1
                 break
 
-            review_texts.append(review_text)
-            included_reviews += 1
-            context_characters += review_length
+            comment_texts.append(comment_text)
+            included_comments += 1
+            context_characters += comment_length
 
-        context = "\n\n".join(review_texts)
+        context = "\n\n".join(comment_texts)
 
         logger.info(
             "Prepared repository summary context",
             extra={
-                "included_reviews": included_reviews,
-                "skipped_reviews": skipped_reviews,
+                "total_comments_considered": len(comments),
+                "included_comments": included_comments,
+                "skipped_comments": skipped_comments,
                 "context_characters": context_characters,
             },
         )
@@ -267,6 +270,6 @@ class IngestionService:
         )
 
         return {
-            "total_reviews": len(review_texts),
+            "total_reviews": len(comment_texts),
             "summary": summary,
         }
