@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers.dashboard import router as dashboard_router
 
 from app.core.config import settings
 
@@ -66,4 +67,10 @@ def root():
 logger.info(
     "Application configured",
     extra={"github_token_configured": settings.github_token is not None},
+)
+
+app.include_router(
+    dashboard_router,
+    prefix="/api/v1",
+    tags=["Dashboard"],
 )

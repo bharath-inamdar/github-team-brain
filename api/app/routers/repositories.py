@@ -8,6 +8,10 @@ from app.schemas import (
     RepositoryUpdate,
     RepositoryResponse,
 )
+
+from pydantic import BaseModel
+import re 
+
 from app.services import (
     github_service,
     pull_request_service,
@@ -16,7 +20,8 @@ from app.services import (
 )
 
 router = APIRouter()
-
+class RepositoryImportRequest(BaseModel):
+    url: str
 
 @router.post(
     "/repositories",
@@ -178,4 +183,43 @@ def import_review_comments(
     return {
         "message": "Review comments imported successfully.",
         "imported_count": imported_count,
+    }
+
+
+@router.post("/repositories/import")
+def import_repository_from_url(
+    request: RepositoryImportRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Import a GitHub repository using its URL.
+
+    Example:
+    https://github.com/openai/openai-python
+    """
+
+    match = re.match(
+        r"https?://github\.com/([^/]+)/([^/]+)/?$",
+        request.url.strip(),
+    )
+
+    if not match:
+        return {
+            "success": False,
+            "message": "Invalid GitHub repository URL.",
+        }
+
+    owner = match.group(1)
+    repo = match.group(2)
+
+    repository = repository_service.import_repository_from_github(
+        owner,
+        repo,
+        db,
+    )
+
+    return {
+        "success": True,
+        "message": "Repository imported successfully.",
+        "repository": repository,
     }
