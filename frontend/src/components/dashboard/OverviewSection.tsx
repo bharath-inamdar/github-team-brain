@@ -1,103 +1,76 @@
-import { useEffect, useState } from "react";
 import {
+  CheckCircle2,
   FolderGit2,
   GitPullRequest,
-  MessageSquare,
-  CheckCircle2,
+  MessageSquareText,
+  ScanSearch,
 } from "lucide-react";
 
-import api from "@/services/api";
-import OverviewCard from "./OverviewCard";
 import LoadingSpinner from "./LoadingSpinner";
+import OverviewCard from "./OverviewCard";
+import type { DashboardOverview } from "@/services/api";
 
-interface DashboardOverview {
-  repositories: number;
-  pull_requests: number;
-  reviews: number;
-  review_comments: number;
-  summary_ready: boolean;
+interface OverviewSectionProps {
+  overview: DashboardOverview | null;
+  loading: boolean;
 }
 
-export default function OverviewSection() {
-  const [overview, setOverview] = useState<DashboardOverview | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadOverview() {
-      try {
-        const response = await api.get("/dashboard/overview");
-        setOverview(response.data);
-      } catch (error) {
-        console.error("Failed to load dashboard overview:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadOverview();
-  }, []);
-
+export default function OverviewSection({ overview, loading }: OverviewSectionProps) {
   if (loading) {
     return (
-      <div className="flex justify-center py-20">
-        <LoadingSpinner />
-      </div>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex h-[122px] items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm"
+          >
+            <LoadingSpinner />
+          </div>
+        ))}
+      </section>
     );
   }
 
   if (!overview) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-600">
-        Unable to load dashboard overview.
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        Unable to load repository overview.
       </div>
     );
   }
 
   return (
-    <section className="space-y-8">
-      <div>
-        <h2 className="text-4xl font-bold tracking-tight text-slate-900">
-          Repository Overview
-        </h2>
-
-        <p className="mt-2 text-lg text-slate-500">
-          Live statistics from your GitHub repositories and AI knowledge base.
-        </p>
-      </div>
-
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-        <OverviewCard
-          title="Repositories"
-          value={overview.repositories}
-          icon={FolderGit2}
-          color="bg-blue-600"
-        />
-
-        <OverviewCard
-          title="Pull Requests"
-          value={overview.pull_requests}
-          icon={GitPullRequest}
-          color="bg-purple-600"
-        />
-
-        <OverviewCard
-          title="Review Comments"
-          value={overview.review_comments}
-          icon={MessageSquare}
-          color="bg-orange-500"
-        />
-
-        <OverviewCard
-          title="AI Summary"
-          value={overview.summary_ready ? "Ready" : "Pending"}
-          icon={CheckCircle2}
-          color={
-            overview.summary_ready
-              ? "bg-emerald-600"
-              : "bg-amber-500"
-          }
-        />
-      </div>
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <OverviewCard
+        title="Repositories"
+        value={overview.repositories}
+        icon={FolderGit2}
+        tone="blue"
+      />
+      <OverviewCard
+        title="Pull Requests"
+        value={overview.pull_requests}
+        icon={GitPullRequest}
+        tone="violet"
+      />
+      <OverviewCard
+        title="Reviews"
+        value={overview.reviews}
+        icon={ScanSearch}
+        tone="slate"
+      />
+      <OverviewCard
+        title="Comments"
+        value={overview.review_comments}
+        icon={MessageSquareText}
+        tone="amber"
+      />
+      <OverviewCard
+        title="AI Status"
+        value={overview.summary_ready ? "Ready" : "Pending"}
+        icon={CheckCircle2}
+        tone={overview.summary_ready ? "emerald" : "amber"}
+      />
     </section>
   );
 }

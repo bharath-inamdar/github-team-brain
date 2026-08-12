@@ -133,6 +133,7 @@ def index_all_reviews(
 def ask_repository(
     question: str,
     repository_id: int | None = None,
+    db: Session = Depends(get_db),
     ingestion_service: IngestionService = Depends(get_ingestion_service),
 ):
     """
@@ -142,15 +143,18 @@ def ask_repository(
     result = ingestion_service.ask_repository(
         question,
         repository_id=repository_id,
+        db=db,
     )
 
     return result
 
 @router.get("/ai/repository-summary", response_model=AIRepositorySummaryResponse)
 def repository_summary(
+    repository_id: int | None = None,
     db: Session = Depends(get_db),
     ingestion_service: IngestionService = Depends(get_ingestion_service),
 ):
     return ingestion_service.summarize_repository(
         db=db,
+        repository_id=repository_id,
     )

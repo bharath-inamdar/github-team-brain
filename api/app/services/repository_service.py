@@ -1,3 +1,5 @@
+import re
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
@@ -7,6 +9,26 @@ from app.schemas import (
     RepositoryUpdate,
 )
 from app.services import github_service
+
+GITHUB_REPOSITORY_URL_PATTERN = re.compile(
+    r"^https?://github\.com/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+?)(?:\.git)?/?$"
+)
+
+
+def parse_github_repository_url(url: str) -> tuple[str, str]:
+    """
+    Parse browser and clone-style GitHub repository URLs.
+    """
+
+    match = GITHUB_REPOSITORY_URL_PATTERN.match(url.strip())
+
+    if match is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Enter a valid GitHub repository URL, for example https://github.com/openai/openai-python.",
+        )
+
+    return match.group("owner"), match.group("repo")
 
 
 def create_repository(

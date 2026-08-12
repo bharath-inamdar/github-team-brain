@@ -1,123 +1,114 @@
-import { useState } from "react";
+import { isAxiosError } from "axios";
 import ReactMarkdown from "react-markdown";
-import { FileText, Sparkles } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { useState } from "react";
 
-import api from "@/services/api";
+import {
+  type Repository,
+  generateRepositorySummary,
+} from "@/services/api";
 
-export default function SummaryCard() {
+interface SummaryCardProps {
+  selectedRepository?: Repository;
+}
+
+export default function SummaryCard({ selectedRepository }: SummaryCardProps) {
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const generateSummary = async () => {
+  async function generateSummary() {
     try {
       setLoading(true);
       setErrorMessage("");
 
-      const response = await api.get("/ai/repository-summary");
-
-      setSummary(response.data.summary);
+      const response = await generateRepositorySummary(selectedRepository?.id);
+      setSummary(response.summary);
     } catch (error) {
       console.error(error);
-      setErrorMessage("Unable to generate repository summary.");
+      const detail = isAxiosError(error) ? error.response?.data?.detail : undefined;
+      setErrorMessage(typeof detail === "string" ? detail : "Unable to generate repository summary.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100">
-          <FileText className="h-7 w-7 text-blue-600" />
+    <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+      <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="rounded-md border border-blue-100 bg-blue-50 p-2 text-blue-700">
+            <FileText className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">AI Summary</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {selectedRepository
+                ? `Markdown report for ${selectedRepository.owner}/${selectedRepository.name}`
+                : "Generate a repository-wide engineering report from review comments."}
+            </p>
+          </div>
         </div>
 
-        <div>
-          <h2 className="text-3xl font-bold text-slate-900">
-            Repository Summary
-          </h2>
-
-          <p className="mt-1 text-slate-500">
-            Generate AI-powered engineering insights from pull requests,
-            review comments and coding discussions.
-          </p>
-        </div>
-      </div>
-
-      {/* Generate Button */}
-      <div className="mt-8">
         <button
-          onClick={generateSummary}
+          type="button"
+          onClick={() => void generateSummary()}
           disabled={loading}
-          className="
-            inline-flex
-            items-center
-            gap-3
-            rounded-xl
-            bg-blue-600
-            px-7
-            py-3.5
-            text-base
-            font-semibold
-            text-white
-            transition-all
-            duration-300
-            hover:scale-105
-            hover:bg-blue-700
-            disabled:cursor-not-allowed
-            disabled:opacity-60
-          "
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? (
-            <>
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Generating...
-            </>
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : summary ? (
+            <RefreshCw className="h-4 w-4" />
           ) : (
-            <>
-              <Sparkles className="h-5 w-5" />
-              Generate Summary
-            </>
+            <Sparkles className="h-4 w-4" />
           )}
+          {loading ? "Generating" : summary ? "Regenerate" : "Generate Summary"}
         </button>
       </div>
 
-      {/* Error */}
-      {errorMessage && (
-        <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-600">
-          {errorMessage}
-        </div>
-      )}
+      <div className="p-5">
+        {errorMessage && (
+          <div className="mb-5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
-      {/* Empty State */}
-      {!summary && !loading && !errorMessage && (
-        <div className="mt-10 rounded-2xl border-2 border-dashed border-slate-200 py-16 text-center">
-          <FileText className="mx-auto h-12 w-12 text-slate-300" />
+        {loading && (
+          <div className="space-y-4 rounded-lg border border-slate-200 bg-slate-50 p-5">
+            <div className="h-5 w-1/3 animate-pulse rounded bg-slate-200" />
+            <div className="space-y-2">
+              <div className="h-3 animate-pulse rounded bg-slate-200" />
+              <div className="h-3 w-11/12 animate-pulse rounded bg-slate-200" />
+              <div className="h-3 w-4/5 animate-pulse rounded bg-slate-200" />
+            </div>
+            <div className="h-5 w-1/4 animate-pulse rounded bg-slate-200" />
+            <div className="space-y-2">
+              <div className="h-3 w-10/12 animate-pulse rounded bg-slate-200" />
+              <div className="h-3 w-8/12 animate-pulse rounded bg-slate-200" />
+            </div>
+          </div>
+        )}
 
-          <h3 className="mt-4 text-xl font-semibold text-slate-700">
-            No summary generated yet
-          </h3>
+        {!summary && !loading && !errorMessage && (
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-5 py-10 text-center">
+            <Sparkles className="mx-auto h-8 w-8 text-slate-300" />
+            <h3 className="mt-3 text-sm font-semibold text-slate-800">No summary generated yet</h3>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-500">
+              Generate a concise engineering report after importing pull requests, reviews,
+              and review comments.
+            </p>
+          </div>
+        )}
 
-          <p className="mt-2 text-slate-500">
-            Click <strong>Generate Summary</strong> to let TeamBrain analyze
-            your repository and create an AI engineering summary.
-          </p>
-        </div>
-      )}
-
-      {/* Summary */}
-      {summary && (
-        <>
-          <hr className="my-10 border-slate-200" />
-
-          <div className="rounded-2xl bg-slate-50 p-8">
+        {summary && !loading && (
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-5">
             <div className="markdown max-w-none">
               <ReactMarkdown>{summary}</ReactMarkdown>
             </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
     </section>
   );
 }

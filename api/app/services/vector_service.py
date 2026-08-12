@@ -20,6 +20,26 @@ class VectorService:
             name=settings.chroma_collection_name
         )
 
+    def add_document(
+        self,
+        document_id: str,
+        document_text: str,
+        embedding: list[float],
+        metadata: dict,
+    ):
+        """
+        Stores indexed GitHub knowledge and its metadata inside ChromaDB.
+        """
+
+        # Use upsert so repeated indexing updates the stored review in place
+        # instead of failing on duplicate IDs during concurrent or retried runs.
+        self.collection.upsert(
+            ids=[document_id],
+            documents=[document_text],
+            embeddings=[embedding],
+            metadatas=[metadata],
+        )
+
     def add_review(
         self,
         review_id: int,
@@ -28,17 +48,14 @@ class VectorService:
         metadata: dict,
     ):
         """
-        Stores a pull request review, its embedding,
-        and metadata inside ChromaDB.
+        Backwards-compatible helper for older review-only callers.
         """
 
-        # Use upsert so repeated indexing updates the stored review in place
-        # instead of failing on duplicate IDs during concurrent or retried runs.
-        self.collection.upsert(
-            ids=[str(review_id)],
-            documents=[review_text],
-            embeddings=[embedding],
-            metadatas=[metadata],
+        self.add_document(
+            document_id=f"review:{review_id}",
+            document_text=review_text,
+            embedding=embedding,
+            metadata=metadata,
         )
 
     def search_reviews(
@@ -59,6 +76,20 @@ class VectorService:
             **query_arguments,
         )
 
+    def document_exists(
+        self,
+        document_id: str,
+    ) -> bool:
+        """
+        Checks whether a document is already indexed.
+        """
+
+        result = self.collection.get(
+            ids=[document_id]
+        )
+
+        return len(result["ids"]) > 0
+
     def review_exists(
         self,
         review_id: int,
@@ -67,8 +98,6 @@ class VectorService:
         Checks whether a review is already indexed.
         """
 
-        result = self.collection.get(
-            ids=[str(review_id)]
+        return self.document_exists(f"review:{review_id}") or self.document_exists(
+            str(review_id)
         )
-
-        return len(result["ids"]) > 0

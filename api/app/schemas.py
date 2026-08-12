@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class RepositoryCreate(BaseModel):
@@ -56,6 +56,16 @@ class RepositoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class RepositoryImportRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=300)
+
+
+class RepositoryImportResponse(BaseModel):
+    success: bool
+    message: str
+    repository: RepositoryResponse
+
+
 class IssueCreate(BaseModel):
     repository_id: int
 
@@ -105,7 +115,10 @@ class AIMessageResponse(BaseModel):
 
 class AIIndexAllReviewsResponse(BaseModel):
     total_reviews: int
+    total_review_comments: int = 0
     indexed: int
+    indexed_reviews: int = 0
+    indexed_review_comments: int = 0
     skipped_empty: int
     skipped_short: int
     skipped_bot: int
@@ -116,10 +129,22 @@ class AISearchReviewsResponse(RootModel[dict[str, Any]]):
     pass
 
 
+class AISourceCitation(BaseModel):
+    citation_id: int
+    text: str
+    source_type: str
+    reviewer: str | None = None
+    state: str | None = None
+    path: str | None = None
+    line: int | None = None
+    pull_request_id: int | None = None
+    repository_id: int | None = None
+
+
 class AIAskRepositoryResponse(BaseModel):
     question: str
     answer: str
-    sources: list[str]
+    sources: list[AISourceCitation]
 
 
 class AIRepositorySummaryResponse(BaseModel):

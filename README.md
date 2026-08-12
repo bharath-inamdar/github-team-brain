@@ -1,99 +1,89 @@
-# TeamBrain
+# GitHub TeamBrain
 
-TeamBrain is an AI-powered GitHub knowledge assistant. It imports repository
-metadata, pull requests, and pull request reviews from GitHub, stores structured
-data in PostgreSQL, indexes review text in ChromaDB, and uses Google Gemini to
-answer engineering questions and generate repository summaries.
-
-## Features
-
-- Import GitHub repository metadata.
-- Import pull requests and pull request reviews.
-- Persist repository data with FastAPI, SQLAlchemy, and PostgreSQL.
-- Generate embeddings for useful review comments with Gemini.
-- Store and query review embeddings in ChromaDB.
-- Ask natural-language questions over indexed review feedback.
-- Generate a Markdown engineering summary for the repository.
-- React and TailwindCSS frontend for summary generation.
+GitHub TeamBrain is an AI-powered repository intelligence dashboard. It imports GitHub repositories, pull requests, reviews, and inline review comments, stores structured data in PostgreSQL, indexes useful review evidence in ChromaDB, and uses Gemini for grounded Q&A and repository summaries.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    UI[React + TypeScript Frontend] --> API[FastAPI API]
-    API --> DB[(PostgreSQL)]
-    API --> GH[GitHub REST API]
-    API --> AI[Google Gemini API]
-    API --> VS[ChromaDB]
-    GH --> API
-    DB --> API
-    API --> AI
-    AI --> API
-    API --> VS
-    VS --> API
+    UI[React + TypeScript + Vite] --> API[FastAPI Routers]
+    API --> Services[Service Layer]
+    Services --> DB[(PostgreSQL)]
+    Services --> Chroma[(ChromaDB)]
+    Services --> GitHub[GitHub REST API]
+    Services --> Gemini[Google Gemini]
+    Gemini --> Services
+    Chroma --> Services
+    DB --> Services
+    Services --> API
     API --> UI
 ```
 
+## What It Does
+
+- Imports repository metadata from a GitHub URL.
+- Syncs pull requests, PR reviews, and inline review comments.
+- Filters low-signal comments before embedding.
+- Indexes review bodies and inline review comments in ChromaDB.
+- Answers questions with source citations from retrieved evidence.
+- Generates Markdown engineering summaries by repository.
+- Provides a SaaS-style React dashboard with overview stats, import progress, chat, evidence cards, and summary regeneration.
+
 ## Tech Stack
 
-- Backend: FastAPI, SQLAlchemy, Alembic, Pydantic
-- Database: PostgreSQL
-- Vector store: ChromaDB
-- AI: Google Gemini API
-- Frontend: React, TypeScript, Vite, TailwindCSS
-- Tests: pytest
+- Frontend: React, TypeScript, Vite, Tailwind CSS, Lucide icons
+- Backend: FastAPI, Pydantic, SQLAlchemy, Alembic
+- Data: PostgreSQL, ChromaDB
+- AI: Google Gemini text generation and embeddings
+- Tooling: Docker Compose, pytest, npm build
 
-## Folder Structure
+## Setup
 
-```text
-.
-├── api/
-│   ├── alembic/              # Database migrations
-│   ├── app/
-│   │   ├── clients/          # External API clients
-│   │   ├── core/             # Application configuration
-│   │   ├── routers/          # FastAPI routes
-│   │   ├── services/         # Business logic
-│   │   ├── database.py       # SQLAlchemy engine/session
-│   │   ├── models.py         # SQLAlchemy models
-│   │   └── schemas.py        # Pydantic schemas
-│   └── requirements.txt
-├── frontend/
-│   └── src/
-│       ├── components/
-│       └── services/
-├── tests/                    # pytest unit tests
-├── docker-compose.yml
-└── .env.example
-```
-
-## Installation
-
-1. Create environment files.
+Create environment files:
 
 ```bash
+cp .env.example .env
 cp .env.example api/.env
-cp .env.example frontend/.env.local
+cp .env.example frontend/.env
 ```
 
-2. Start PostgreSQL and ChromaDB.
+Set these values before running imports or AI endpoints:
 
-```bash
-docker compose up -d
+```env
+API_KEY=your_api_key
+GITHUB_TOKEN=your_github_personal_access_token
+GEMINI_API_KEY=your_gemini_api_key
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/github_team_brain
+CHROMA_HOST=localhost
+CHROMA_PORT=8001
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+VITE_API_KEY=your_api_key
 ```
 
-3. Install and run the backend.
+Run the full stack:
 
 ```bash
+docker compose up --build
+```
+
+Services:
+
+- Frontend: http://127.0.0.1:5173
+- API: http://127.0.0.1:8000
+- PostgreSQL: 127.0.0.1:5433
+- ChromaDB: http://127.0.0.1:8001
+
+Run locally without Docker:
+
+```bash
+docker compose up -d postgres chromadb
 cd api
-python3 -m venv venv
+python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
-
-4. Install and run the frontend.
 
 ```bash
 cd frontend
@@ -101,87 +91,55 @@ npm install
 npm run dev
 ```
 
-## Environment Variables
+## API Overview
 
-Backend variables are read by `api/app/core/config.py`.
+- `GET /api/v1/health`
+- `GET /api/v1/dashboard/overview`
+- `GET /api/v1/repositories`
+- `POST /api/v1/repositories/import`
+- `POST /api/v1/repositories/import/{owner}/{repo}/pull-requests`
+- `POST /api/v1/repositories/import/{owner}/{repo}/reviews`
+- `POST /api/v1/repositories/import/{owner}/{repo}/review-comments`
+- `POST /api/v1/ai/index-all-reviews`
+- `GET /api/v1/ai/search?question=...&repository_id=...`
+- `GET /api/v1/ai/ask?question=...&repository_id=...`
+- `GET /api/v1/ai/repository-summary?repository_id=...`
 
-```env
-APP_NAME=GitHub Team Brain API
-APP_VERSION=1.0.0
-DEBUG=True
-DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/github_team_brain
-GITHUB_TOKEN=your_github_personal_access_token
-GITHUB_REQUEST_TIMEOUT_SECONDS=15
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=models/gemini-3.6-flash
-GEMINI_EMBEDDING_MODEL=gemini-embedding-001
-CHROMA_HOST=localhost
-CHROMA_PORT=8001
-CHROMA_COLLECTION_NAME=teambrain
+Protected mutating and AI endpoints require:
+
+```http
+X-API-Key: your_api_key
 ```
-
-Frontend variables:
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-```
-
-## API Endpoints
-
-- `GET /api/v1/health` - service health check
-- `POST /api/v1/repositories` - create a repository record
-- `GET /api/v1/repositories` - list repositories
-- `GET /api/v1/repositories/{repository_id}` - get a repository
-- `PUT /api/v1/repositories/{repository_id}` - update a repository
-- `DELETE /api/v1/repositories/{repository_id}` - delete a repository
-- `GET /api/v1/github/{owner}/{repo}` - preview GitHub repository metadata
-- `POST /api/v1/repositories/import/{owner}/{repo}` - import repository metadata
-- `POST /api/v1/repositories/import/{owner}/{repo}/pull-requests` - import pull requests
-- `POST /api/v1/repositories/import/{owner}/{repo}/reviews` - import pull request reviews
-- `GET /api/v1/ai/embedding-test` - verify Gemini embeddings
-- `GET /api/v1/ai/chroma-test` - verify ChromaDB connection
-- `POST /api/v1/ai/index-review` - index one review
-- `POST /api/v1/ai/index-all-reviews` - index all useful reviews
-- `GET /api/v1/ai/search?question=...` - search similar review comments
-- `GET /api/v1/ai/ask?question=...` - answer a repository question
-- `GET /api/v1/ai/repository-summary` - generate a repository summary
-
-`/api/v1/ai/search` and `/api/v1/ai/ask` also accept an optional
-`repository_id` query parameter to scope retrieval.
 
 ## RAG Workflow
 
 1. Import repository metadata from GitHub.
-2. Import pull requests for that repository.
-3. Import pull request reviews.
-4. Filter out empty, very short, bot-generated, and low-signal review text.
-5. Generate Gemini embeddings for useful review comments.
-6. Store review text, embeddings, and metadata in ChromaDB.
-7. Embed the user's question.
-8. Retrieve similar reviews from ChromaDB.
-9. Ask Gemini to answer using only the retrieved review context.
+2. Sync pull requests.
+3. Sync PR review bodies.
+4. Sync inline PR review comments.
+5. Filter empty, very short, bot-like, or approval-only text.
+6. Embed useful review bodies and inline comments.
+7. Upsert documents into ChromaDB with repository, reviewer, PR, file, and line metadata.
+8. Retrieve semantically similar documents for a question.
+9. Ask Gemini to answer only from retrieved evidence and cite source numbers.
+
+If retrieval is empty for Ask TeamBrain, the API indexes available database review material once and retries retrieval before answering.
 
 ## Testing
 
-Run backend unit tests from the repository root:
+Backend:
 
 ```bash
-pytest
+.venv/bin/pytest
 ```
 
-Run frontend checks from `frontend/`:
+Frontend:
 
 ```bash
-npm run lint
+cd frontend
 npm run build
 ```
 
-## Future Improvements
+## Screenshots
 
-- Add authentication for mutating and AI-costing endpoints.
-- Add rate limiting for GitHub and Gemini calls.
-- Add CI/CD checks for tests, linting, and migrations.
-- Add deployment configuration for production environments.
-- Add background jobs for long-running imports and indexing.
-- Add API-level integration tests with disposable PostgreSQL and ChromaDB.
-- Add observability dashboards and request tracing.
+Add screenshots of the dashboard, import flow, Ask TeamBrain chat, and AI summary here after running the app locally.

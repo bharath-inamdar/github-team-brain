@@ -77,6 +77,7 @@ You are TeamBrain.
     {self._review_prompt_instructions()}
 
     Answer the question using ONLY the evidence inside the review comments block below.
+    When you use evidence, cite it with the bracketed source number, for example [1].
 
 If the answer cannot be determined from the review comments, reply exactly:
 
