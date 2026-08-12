@@ -1,4 +1,30 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: gtb-api
+    environment:
+      APP_NAME: ${APP_NAME:-GitHub Team Brain API}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      DEBUG: ${DEBUG:-False}
+      API_KEY: ${API_KEY}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/github_team_brain
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REQUEST_TIMEOUT_SECONDS: ${GITHUB_REQUEST_TIMEOUT_SECONDS:-15}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-models/gemini-3.6-flash}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      CHROMA_COLLECTION_NAME: ${CHROMA_COLLECTION_NAME:-teambrain}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - chromadb
+    restart: unless-stopped
+
   postgres:
     image: postgres:17
     container_name: gtb-postgres

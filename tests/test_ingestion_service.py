@@ -1,3 +1,4 @@
+from app import models
 from app.services.ingestion_service import IngestionService
 
 
@@ -19,3 +20,72 @@ def test_is_useful_review_allows_meaningful_feedback():
     )
 
     assert service._is_useful_review(review) is True
+
+
+def test_summarize_repository_uses_review_comments(db_session):
+    repository = models.Repository(
+        owner="octo-org",
+        name="octo-repo",
+        default_branch="main",
+    )
+    db_session.add(repository)
+    db_session.commit()
+    db_session.refresh(repository)
+
+    pull_request = models.PullRequest(
+        repository_id=repository.id,
+        github_pr_number=12,
+        title="Improve repository summary",
+        body="",
+        state="open",
+        author="octocat",
+    )
+    db_session.add(pull_request)
+    db_session.commit()
+    db_session.refresh(pull_request)
+
+    db_session.add(
+        models.PullRequestReview(
+            pull_request_id=pull_request.id,
+            github_review_id=2001,
+            reviewer="reviewer",
+            state="COMMENTED",
+            body=(
+                "This useful review body should not be used by repository "
+                "summary generation anymore."
+            ),
+        )
+    )
+    db_session.add(
+        models.PullRequestReviewComment(
+            pull_request_id=pull_request.id,
+            github_comment_id=3001,
+            reviewer="reviewer",
+            body=(
+                "The repository summary should use this inline engineering "
+                "comment about the implementation details."
+            ),
+        )
+    )
+    db_session.commit()
+
+    class FakeAIService:
+        context = None
+
+        def summarize_repository(self, context):
+            self.context = context
+            return "summary"
+
+    service = IngestionService.__new__(IngestionService)
+    service.ai_service = FakeAIService()
+
+    result = service.summarize_repository(db_session)
+
+    assert result == {
+        "total_reviews": 1,
+        "summary": "summary",
+    }
+    assert service.ai_service.context == (
+        "The repository summary should use this inline engineering "
+        "comment about the implementation details."
+    )

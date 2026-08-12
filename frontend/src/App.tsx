@@ -1,15 +1,7 @@
-import Header from "./components/Header";
-import SummaryCard from "./components/SummaryCard";
+import Dashboard from "@/pages/Dashboard";
 
 function App() {
-  return (
-    <div className="min-h-screen bg-slate-100">
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        <Header />
-        <SummaryCard />
-      </main>
-    </div>
-  );
+  return <Dashboard />;
 }
 
 export default App;
