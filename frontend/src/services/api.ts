@@ -2,9 +2,29 @@ import axios from "axios";
 
 const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
 
+console.log("TeamBrain API configuration:");
+console.log(
+  "API base URL:",
+  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1",
+);
+console.log("API key loaded:", Boolean(apiKey));
+
+if (!apiKey) {
+  console.error(
+    "VITE_API_KEY is missing. Check frontend/.env and restart Vite.",
+  );
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1",
-  headers: apiKey ? { "X-API-Key": apiKey } : undefined,
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ??
+    "http://127.0.0.1:8000/api/v1",
+
+  headers: apiKey
+    ? {
+        "X-API-Key": apiKey,
+      }
+    : undefined,
 });
 
 export interface Repository {
@@ -75,66 +95,107 @@ export interface IndexResponse {
 }
 
 export async function getDashboardOverview() {
-  const response = await api.get<DashboardOverview>("/dashboard/overview");
+  const response = await api.get<DashboardOverview>(
+    "/dashboard/overview",
+  );
+
   return response.data;
 }
 
 export async function getRepositories() {
-  const response = await api.get<Repository[]>("/repositories", {
-    params: { limit: 100 },
-  });
+  const response = await api.get<Repository[]>(
+    "/repositories",
+    {
+      params: {
+        limit: 100,
+      },
+    },
+  );
+
   return response.data;
 }
 
 export async function importRepository(url: string) {
-  const response = await api.post<ImportRepositoryResponse>("/repositories/import", {
-    url,
-  });
+  const response = await api.post<ImportRepositoryResponse>(
+    "/repositories/import",
+    {
+      url,
+    },
+  );
+
   return response.data;
 }
 
-export async function importPullRequests(owner: string, repo: string) {
+export async function importPullRequests(
+  owner: string,
+  repo: string,
+) {
   const response = await api.post<ImportStepResponse>(
     `/repositories/import/${owner}/${repo}/pull-requests`,
   );
+
   return response.data;
 }
 
-export async function importReviews(owner: string, repo: string) {
+export async function importReviews(
+  owner: string,
+  repo: string,
+) {
   const response = await api.post<ImportStepResponse>(
     `/repositories/import/${owner}/${repo}/reviews`,
   );
+
   return response.data;
 }
 
-export async function importReviewComments(owner: string, repo: string) {
+export async function importReviewComments(
+  owner: string,
+  repo: string,
+) {
   const response = await api.post<ImportStepResponse>(
     `/repositories/import/${owner}/${repo}/review-comments`,
   );
+
   return response.data;
 }
 
 export async function indexReviewKnowledge() {
-  const response = await api.post<IndexResponse>("/ai/index-all-reviews");
+  const response = await api.post<IndexResponse>(
+    "/ai/index-all-reviews",
+  );
+
   return response.data;
 }
 
-export async function askRepository(question: string, repositoryId?: number) {
-  const response = await api.get<AskRepositoryResponse>("/ai/ask", {
-    params: {
-      question,
-      repository_id: repositoryId,
+export async function askRepository(
+  question: string,
+  repositoryId?: number,
+) {
+  const response = await api.get<AskRepositoryResponse>(
+    "/ai/ask",
+    {
+      params: {
+        question,
+        repository_id: repositoryId,
+      },
     },
-  });
+  );
+
   return response.data;
 }
 
-export async function generateRepositorySummary(repositoryId?: number) {
-  const response = await api.get<RepositorySummaryResponse>("/ai/repository-summary", {
-    params: {
-      repository_id: repositoryId,
+export async function generateRepositorySummary(
+  repositoryId?: number,
+) {
+  const response = await api.get<RepositorySummaryResponse>(
+    "/ai/repository-summary",
+    {
+      params: {
+        repository_id: repositoryId,
+      },
     },
-  });
+  );
+
   return response.data;
 }
 
