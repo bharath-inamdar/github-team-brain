@@ -62,6 +62,7 @@ class VectorService:
         self,
         query_embedding: list[float],
         repository_id: int | None = None,
+        repository_ids: list[int] | None = None,
         top_k: int = 5,
     ):
         query_arguments = {
@@ -69,7 +70,11 @@ class VectorService:
             "n_results": top_k,
         }
 
-        if repository_id is not None:
+        if repository_ids:
+            query_arguments["where"] = {
+                "repository_id": {"$in": repository_ids}
+            }
+        elif repository_id is not None:
             query_arguments["where"] = {"repository_id": repository_id}
 
         return self.collection.query(
@@ -89,6 +94,30 @@ class VectorService:
         )
 
         return len(result["ids"]) > 0
+
+    def count_documents(
+        self,
+        repository_ids: list[int] | None = None,
+    ) -> int:
+        """
+        Counts documents in the collection.
+
+        When repository ids are supplied the count is scoped to those
+        repositories so it never leaks across user boundaries.
+        """
+
+        if not repository_ids:
+            return self.collection.count()
+
+        result = self.collection.get(
+            where={
+                "repository_id": {
+                    "$in": repository_ids
+                }
+            },
+        )
+
+        return len(result["ids"])
 
     def review_exists(
         self,

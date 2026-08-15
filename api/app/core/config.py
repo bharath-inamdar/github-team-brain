@@ -21,7 +21,19 @@ class Settings(BaseSettings):
     chroma_host: str = "localhost"
     chroma_port: int = 8001
     chroma_collection_name: str = "teambrain"
-    api_key: str
+
+    # JWT authentication
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+
+    # Bootstrap admin account used to backfill repositories that were
+    # created before user ownership existed. The email is not a secret;
+    # the password must be supplied via the BOOTSTRAP_ADMIN_PASSWORD
+    # environment variable and is never stored in source code.
+    bootstrap_admin_email: str = "admin@teambrain.local"
+    bootstrap_admin_username: str = "admin"
+    bootstrap_admin_password: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

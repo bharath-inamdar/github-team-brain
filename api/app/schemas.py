@@ -1,6 +1,41 @@
 from typing import Any
+from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, RootModel
+
+
+class UserCreate(BaseModel):
+    """
+    Schema used when registering a new user.
+    """
+
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+    username: str | None = Field(default=None, min_length=2, max_length=64)
+
+
+class UserResponse(BaseModel):
+    """
+    Schema used when returning user data to the client.
+    """
+
+    id: int
+    email: str
+    username: str | None
+    is_active: bool
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuthResponse(BaseModel):
+    """
+    Schema returned by register and login.
+    """
+
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
 
 
 class RepositoryCreate(BaseModel):

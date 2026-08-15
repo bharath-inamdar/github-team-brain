@@ -6,6 +6,7 @@ from app.models import (
     PullRequest,
     PullRequestReview,
     PullRequestReviewComment,
+    Repository,
 )
 from app.services.ai_service import AIService
 from app.services.vector_service import VectorService
@@ -14,6 +15,21 @@ logger = logging.getLogger(__name__)
 
 MAX_SUMMARY_CONTEXT_CHARS = 60000
 MAX_ASK_CONTEXT_CHARS = 12000
+
+NOT_INDEXED_MESSAGE = (
+    "Repository knowledge base is not indexed yet. "
+    "Run indexing first."
+)
+
+
+class RepositoryNotIndexedError(Exception):
+    """
+    Raised when a question is asked about a repository that has no
+    indexed vectors yet.
+
+    Ask is read-only: it never triggers indexing. Callers use this
+    exception to guide the user to run indexing explicitly.
+    """
 
 
 class IngestionService:
@@ -71,13 +87,29 @@ class IngestionService:
         self,
         review: PullRequestReview,
     ) -> str:
-        return f"review:{review.github_review_id}"
+        """
+        Stable document id scoped by repository so the same GitHub review
+        id never collides across repositories or users.
+        """
+        return (
+            f"review:"
+            f"{review.pull_request.repository_id}:"
+            f"{review.github_review_id}"
+        )
 
     def _review_comment_document_id(
         self,
         comment: PullRequestReviewComment,
     ) -> str:
-        return f"review-comment:{comment.github_comment_id}"
+        """
+        Stable document id scoped by repository so the same GitHub comment
+        id never collides across repositories or users.
+        """
+        return (
+            f"review-comment:"
+            f"{comment.pull_request.repository_id}:"
+            f"{comment.github_comment_id}"
+        )
 
     def _clean_metadata(
         self,
@@ -325,13 +357,24 @@ class IngestionService:
     def index_first_review(
         self,
         db: Session,
+        user_id: int,
     ):
         """
-        Indexes the first review from PostgreSQL into ChromaDB.
+        Indexes the first review owned by a user from PostgreSQL
+        into ChromaDB.
         """
 
         review = (
             db.query(PullRequestReview)
+            .join(
+                PullRequestReview.pull_request
+            )
+            .join(
+                PullRequest.repository
+            )
+            .filter(
+                Repository.user_id == user_id
+            )
             .filter(
                 PullRequestReview.body.isnot(None)
             )
@@ -388,23 +431,61 @@ class IngestionService:
     def index_all_reviews(
         self,
         db: Session,
+        user_id: int,
+        repository_id: int | None = None,
     ):
         """
-        Index every useful pull request review and
-        inline review comment into ChromaDB.
+        Index every useful pull request review and inline review
+        comment belonging to repositories owned by the authenticated
+        user into ChromaDB.
+
+        When a repository_id is supplied only that repository is
+        indexed; otherwise every repository owned by the user is
+        indexed.
+
+        Reviews from other users' repositories are never indexed.
         """
 
-        reviews = (
+        reviews_query = (
             db.query(
                 PullRequestReview
-            ).all()
+            )
+            .join(
+                PullRequestReview.pull_request
+            )
+            .join(
+                PullRequest.repository
+            )
+            .filter(
+                Repository.user_id == user_id
+            )
         )
 
-        review_comments = (
+        comments_query = (
             db.query(
                 PullRequestReviewComment
-            ).all()
+            )
+            .join(
+                PullRequestReviewComment.pull_request
+            )
+            .join(
+                PullRequest.repository
+            )
+            .filter(
+                Repository.user_id == user_id
+            )
         )
+
+        if repository_id is not None:
+            reviews_query = reviews_query.filter(
+                PullRequest.repository_id == repository_id
+            )
+            comments_query = comments_query.filter(
+                PullRequest.repository_id == repository_id
+            )
+
+        reviews = reviews_query.all()
+        review_comments = comments_query.all()
 
         indexed = 0
         indexed_reviews = 0
@@ -600,10 +681,25 @@ class IngestionService:
         self,
         question: str,
         repository_id: int | None = None,
+        repository_ids: list[int] | None = None,
     ):
         """
         Searches indexed reviews using semantic similarity.
+
+        Results are restricted to the provided repository ids, which
+        must already be scoped to the authenticated user. Without any
+        repository scope there is nothing the caller may query, so an
+        empty result is returned instead of falling back to a
+        whole-collection search.
         """
+
+        if repository_id is None and not repository_ids:
+            return {
+                "ids": [[]],
+                "documents": [[]],
+                "metadatas": [[]],
+                "distances": [[]],
+            }
 
         embedding = (
             self.ai_service.generate_embedding(
@@ -614,25 +710,55 @@ class IngestionService:
         return self.vector_service.search_reviews(
             embedding,
             repository_id=repository_id,
+            repository_ids=repository_ids,
         )
 
     def ask_repository(
         self,
         question: str,
         repository_id: int | None = None,
-        db: Session | None = None,
+        repository_ids: list[int] | None = None,
     ):
         """
         Answers a repository question using semantic search.
 
-        Retrieved review evidence is converted into numbered
-        sources before being sent to Gemini.
+        Read-only: never triggers indexing. Repositories that have no
+        indexed vectors raise RepositoryNotIndexedError so callers can
+        guide the user to run indexing first.
         """
+
+        search_ids = (
+            repository_ids
+            if repository_ids is not None
+            else repository_id
+        )
+
+        if isinstance(search_ids, int):
+            search_ids = [search_ids]
+
+        if not search_ids:
+            return {
+                "question": question,
+                "answer": (
+                    "The repository does not contain "
+                    "enough information."
+                ),
+                "sources": [],
+            }
+
+        if (
+            self.vector_service.count_documents(
+                repository_ids=search_ids
+            )
+            == 0
+        ):
+            raise RepositoryNotIndexedError()
 
         search_results = (
             self.search_reviews(
                 question,
                 repository_id=repository_id,
+                repository_ids=repository_ids,
             )
         )
 
@@ -641,34 +767,6 @@ class IngestionService:
                 search_results
             )
         )
-
-        # If Chroma has no results, populate it from PostgreSQL.
-        if not sources and db is not None:
-
-            logger.info(
-                "No vector search results found; "
-                "indexing database review material",
-                extra={
-                    "repository_id": (
-                        repository_id
-                    ),
-                },
-            )
-
-            self.index_all_reviews(db)
-
-            search_results = (
-                self.search_reviews(
-                    question,
-                    repository_id=repository_id,
-                )
-            )
-
-            sources = (
-                self._source_citations(
-                    search_results
-                )
-            )
 
         # Never ask Gemini to answer from an empty context.
         if not sources:
@@ -719,6 +817,7 @@ class IngestionService:
     def summarize_repository(
         self,
         db: Session,
+        user_id: int,
         repository_id: int | None = None,
     ):
         """
@@ -728,8 +827,9 @@ class IngestionService:
         - Pull request review bodies
         - Inline review comments
 
-        Evidence is explicitly numbered so Gemini can cite
-        the original review sources.
+        Only evidence from repositories owned by the authenticated
+        user is considered. Evidence is explicitly numbered so Gemini
+        can cite the original review sources.
         """
 
         # ---------------------------------------------------------
@@ -742,6 +842,12 @@ class IngestionService:
             )
             .join(
                 PullRequestReview.pull_request
+            )
+            .join(
+                PullRequest.repository
+            )
+            .filter(
+                Repository.user_id == user_id
             )
             .filter(
                 PullRequestReview.body.isnot(None)
@@ -771,6 +877,12 @@ class IngestionService:
             )
             .join(
                 PullRequestReviewComment.pull_request
+            )
+            .join(
+                PullRequest.repository
+            )
+            .filter(
+                Repository.user_id == user_id
             )
             .filter(
                 PullRequestReviewComment.body.isnot(None)

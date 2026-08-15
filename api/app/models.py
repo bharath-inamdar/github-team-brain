@@ -1,5 +1,6 @@
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Column,
     DateTime,
     Integer,
@@ -17,13 +18,47 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, nullable=True)
+    hashed_password = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    repositories = relationship(
+        "Repository",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+
 class Repository(Base):
     __tablename__ = "repositories"
     __table_args__ = (
-        UniqueConstraint("owner", "name", name="uq_repository_owner_name"),
+        UniqueConstraint(
+            "user_id",
+            "owner",
+            "name",
+            name="uq_repository_user_owner_name",
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
 
     owner = Column(String, nullable=False)
     name = Column(String, nullable=False)
@@ -36,6 +71,11 @@ class Repository(Base):
     open_issues = Column(Integer, default=0)
 
     default_branch = Column(String, nullable=False)
+
+    user = relationship(
+        "User",
+        back_populates="repositories",
+    )
 
     # One repository can have many issues
     issues = relationship(

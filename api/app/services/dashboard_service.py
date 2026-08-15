@@ -10,13 +10,45 @@ from app.models import (
 )
 
 
-def get_dashboard_overview(db: Session):
-    repositories = db.query(func.count(Repository.id)).scalar() or 0
-    issues = db.query(func.count(Issue.id)).scalar() or 0
-    pull_requests = db.query(func.count(PullRequest.id)).scalar() or 0
-    reviews = db.query(func.count(PullRequestReview.id)).scalar() or 0
+def get_dashboard_overview(
+    db: Session,
+    user_id: int,
+):
+    repositories = (
+        db.query(func.count(Repository.id))
+        .filter(Repository.user_id == user_id)
+        .scalar()
+        or 0
+    )
+    issues = (
+        db.query(func.count(Issue.id))
+        .join(Issue.repository)
+        .filter(Repository.user_id == user_id)
+        .scalar()
+        or 0
+    )
+    pull_requests = (
+        db.query(func.count(PullRequest.id))
+        .join(PullRequest.repository)
+        .filter(Repository.user_id == user_id)
+        .scalar()
+        or 0
+    )
+    reviews = (
+        db.query(func.count(PullRequestReview.id))
+        .join(PullRequestReview.pull_request)
+        .join(PullRequest.repository)
+        .filter(Repository.user_id == user_id)
+        .scalar()
+        or 0
+    )
     review_comments = (
-        db.query(func.count(PullRequestReviewComment.id)).scalar() or 0
+        db.query(func.count(PullRequestReviewComment.id))
+        .join(PullRequestReviewComment.pull_request)
+        .join(PullRequest.repository)
+        .filter(Repository.user_id == user_id)
+        .scalar()
+        or 0
     )
 
     return {

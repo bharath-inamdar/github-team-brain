@@ -1,11 +1,46 @@
 import logging
+import re
 
 from google import genai
-from google.genai import types
+from google.genai import errors, types
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+_DURATION_SECONDS_PATTERN = re.compile(
+    r"^P?T?(\d+(?:\.\d+)?)s$",
+    re.IGNORECASE,
+)
+
+
+class RateLimitError(Exception):
+    """
+    Raised when the AI provider returns HTTP 429.
+
+    Carries the provider's recommended retry delay so the API layer can
+    surface a Retry-After header instead of a raw 500.
+    """
+
+    def __init__(self, retry_after_seconds: float | None = None):
+        self.retry_after_seconds = retry_after_seconds
+        suffix = (
+            f" (retry after {retry_after_seconds:.0f}s)"
+            if retry_after_seconds is not None
+            else ""
+        )
+        super().__init__(f"AI provider rate limit exceeded{suffix}")
+
+
+def _duration_seconds(value: str) -> float | None:
+    """
+    Converts a google.rpc RetryInfo duration such as "60s" or "PT60s"
+    into seconds, or None when the value is not parseable.
+    """
+    match = _DURATION_SECONDS_PATTERN.match(value.strip())
+    if match:
+        return float(match.group(1))
+    return None
 
 
 class AIService:
@@ -26,6 +61,52 @@ class AIService:
 
         self.model = settings.gemini_model
         self.embedding_model = settings.gemini_embedding_model
+
+    @staticmethod
+    def _retry_after_seconds(
+        error: errors.ClientError,
+    ) -> float | None:
+        """
+        Extracts the provider's recommended retry delay from the
+        google.rpc RetryInfo error payload when present.
+        """
+        body = getattr(error, "details", None)
+        if not isinstance(body, dict):
+            return None
+
+        error_payload = body.get("error") or {}
+        for detail in error_payload.get("details") or []:
+            if not isinstance(detail, dict):
+                continue
+            retry_delay = detail.get("retryDelay")
+            if retry_delay:
+                return _duration_seconds(str(retry_delay))
+
+        return None
+
+    def _raise_rate_limit(
+        self,
+        error: errors.ClientError,
+    ) -> None:
+        """
+        Translates a provider 429 into a RateLimitError while preserving
+        the recommended retry delay.
+        """
+        raise RateLimitError(
+            retry_after_seconds=self._retry_after_seconds(error),
+        ) from error
+
+    def _generate_content(self, prompt: str, config: types.GenerateContentConfig):
+        try:
+            return self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=config,
+            )
+        except errors.ClientError as error:
+            if error.code == 429:
+                self._raise_rate_limit(error)
+            raise
 
     def _review_prompt_instructions(self) -> str:
         """
@@ -69,9 +150,8 @@ Use review comments ONLY as evidence about the repository.
         Generate text using Gemini.
         """
 
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=prompt,
+        response = self._generate_content(
+            prompt=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.3,
                 max_output_tokens=700,
@@ -88,10 +168,15 @@ Use review comments ONLY as evidence about the repository.
         Generate an embedding for the given text.
         """
 
-        response = self.client.models.embed_content(
-            model=self.embedding_model,
-            contents=text,
-        )
+        try:
+            response = self.client.models.embed_content(
+                model=self.embedding_model,
+                contents=text,
+            )
+        except errors.ClientError as error:
+            if error.code == 429:
+                self._raise_rate_limit(error)
+            raise
 
         return response.embeddings[0].values
 
@@ -148,9 +233,8 @@ User question:
 Now answer the user's question.
 """
 
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=prompt,
+        response = self._generate_content(
+            prompt=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.2,
                 max_output_tokens=900,
@@ -356,9 +440,8 @@ Retrieved repository evidence:
 Generate the complete engineering report now.
 """
 
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=prompt,
+        response = self._generate_content(
+            prompt=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.15,
                 max_output_tokens=3000,

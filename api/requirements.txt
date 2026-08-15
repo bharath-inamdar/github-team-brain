@@ -92,3 +92,7 @@ watchfiles==1.2.0
 websocket-client==1.9.0
 websockets==16.1.1
 yarl==1.24.5
+PyJWT==2.13.0
+email-validator==2.3.0
+dnspython==2.8.0
+python-multipart==0.0.32
