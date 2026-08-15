@@ -50,14 +50,15 @@ cp .env.example frontend/.env
 Set these values before running imports or AI endpoints:
 
 ```env
-API_KEY=your_api_key
+JWT_SECRET=your_long_random_jwt_secret
+BOOTSTRAP_ADMIN_EMAIL=admin@teambrain.local
+BOOTSTRAP_ADMIN_PASSWORD=your_strong_admin_password
 GITHUB_TOKEN=your_github_personal_access_token
 GEMINI_API_KEY=your_gemini_api_key
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5433/github_team_brain
 CHROMA_HOST=localhost
 CHROMA_PORT=8001
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-VITE_API_KEY=your_api_key
 ```
 
 Run the full stack:
@@ -93,6 +94,9 @@ npm run dev
 
 ## API Overview
 
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/me`
 - `GET /api/v1/health`
 - `GET /api/v1/dashboard/overview`
 - `GET /api/v1/repositories`
@@ -105,11 +109,40 @@ npm run dev
 - `GET /api/v1/ai/ask?question=...&repository_id=...`
 - `GET /api/v1/ai/repository-summary?repository_id=...`
 
-Protected mutating and AI endpoints require:
+## Authentication
 
-```http
-X-API-Key: your_api_key
-```
+All endpoints except `/health` and `/auth/register` and `/auth/login` require a JWT Bearer token:
+
+1. Register or log in:
+   ```http
+   POST /api/v1/auth/register
+   Content-Type: application/json
+
+   {"email": "you@example.com", "password": "your_password"}
+   ```
+   ```http
+   POST /api/v1/auth/login
+   Content-Type: application/x-www-form-urlencoded
+
+   username=you@example.com&password=your_password
+   ```
+2. Use the returned `access_token` on every protected request:
+   ```http
+   Authorization: Bearer <access_token>
+   ```
+
+Repositories are private to the user who imports them. Dashboard statistics,
+repository CRUD, and all AI/RAG operations (search, ask, summaries, and
+knowledge indexing) are scoped to the authenticated user's repositories.
+Indexing never touches another user's repositories.
+
+### Existing database data
+
+The `0003_repository_user_id` migration assigns every pre-existing repository
+to the bootstrap admin account (`BOOTSTRAP_ADMIN_EMAIL`). Set
+`BOOTSTRAP_ADMIN_PASSWORD` before the first application start so that account
+can be logged into. The password is only ever read from the environment and is
+never stored in source code or migrations.
 
 ## RAG Workflow
 

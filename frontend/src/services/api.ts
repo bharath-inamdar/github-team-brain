@@ -1,31 +1,107 @@
 import axios from "axios";
 
-const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
+const TOKEN_STORAGE_KEY = "teambrain_access_token";
+
+export const AUTH_UNAUTHORIZED_EVENT = "teambrain:unauthorized";
 
 console.log("TeamBrain API configuration:");
 console.log(
   "API base URL:",
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1",
 );
-console.log("API key loaded:", Boolean(apiKey));
 
-if (!apiKey) {
-  console.error(
-    "VITE_API_KEY is missing. Check frontend/.env and restart Vite.",
-  );
+export function getAccessToken(): string | null {
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
+export function setAccessToken(token: string): void {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+export function clearAccessToken(): void {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
 }
 
 const api = axios.create({
   baseURL:
     import.meta.env.VITE_API_BASE_URL ??
     "http://127.0.0.1:8000/api/v1",
-
-  headers: apiKey
-    ? {
-        "X-API-Key": apiKey,
-      }
-    : undefined,
 });
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      clearAccessToken();
+      window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT));
+    }
+
+    return Promise.reject(error);
+  },
+);
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  username: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}
+
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  username?: string;
+}
+
+export async function register(payload: RegisterPayload) {
+  const response = await api.post<AuthResponse>(
+    "/auth/register",
+    payload,
+  );
+
+  return response.data;
+}
+
+export async function login(email: string, password: string) {
+  const body = new URLSearchParams();
+  body.set("username", email);
+  body.set("password", password);
+
+  const response = await api.post<AuthResponse>(
+    "/auth/login",
+    body,
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    },
+  );
+
+  return response.data;
+}
+
+export async function getMe() {
+  const response = await api.get<AuthUser>("/auth/me");
+
+  return response.data;
+}
 
 export interface Repository {
   id: number;

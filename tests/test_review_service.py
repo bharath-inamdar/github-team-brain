@@ -4,8 +4,14 @@ from app import models
 from app.services import github_service, review_service
 
 
-def test_review_service_skips_malformed_github_reviews(monkeypatch, db_session):
+def test_review_service_skips_malformed_github_reviews(
+    monkeypatch,
+    db_session,
+    make_user,
+):
+    user = make_user()
     repository = models.Repository(
+        user_id=user.id,
         owner="octo-org",
         name="octo-repo",
         default_branch="main",
@@ -59,8 +65,14 @@ def test_review_service_skips_malformed_github_reviews(monkeypatch, db_session):
     assert stored_reviews[0].github_review_id == 2001
 
 
-def test_review_service_rolls_back_on_upstream_failure(monkeypatch, db_session):
+def test_review_service_rolls_back_on_upstream_failure(
+    monkeypatch,
+    db_session,
+    make_user,
+):
+    user = make_user()
     repository = models.Repository(
+        user_id=user.id,
         owner="octo-org",
         name="octo-repo",
         default_branch="main",

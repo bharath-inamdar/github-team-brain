@@ -22,8 +22,10 @@ def test_is_useful_review_allows_meaningful_feedback():
     assert service._is_useful_review(review) is True
 
 
-def test_summarize_repository_uses_review_comments(db_session):
+def test_summarize_repository_uses_review_comments(db_session, make_user):
+    user = make_user()
     repository = models.Repository(
+        user_id=user.id,
         owner="octo-org",
         name="octo-repo",
         default_branch="main",
@@ -79,20 +81,26 @@ def test_summarize_repository_uses_review_comments(db_session):
     service = IngestionService.__new__(IngestionService)
     service.ai_service = FakeAIService()
 
-    result = service.summarize_repository(db_session)
-
-    assert result == {
-        "total_reviews": 1,
-        "summary": "summary",
-    }
-    assert service.ai_service.context == (
-        "The repository summary should use this inline engineering "
-        "comment about the implementation details."
+    result = service.summarize_repository(
+        db_session,
+        user_id=user.id,
     )
 
+    assert result["total_reviews"] == 2
+    assert result["summary"] == "summary"
+    assert (
+        "The repository summary should use this inline engineering "
+        "comment about the implementation details."
+    ) in service.ai_service.context
 
-def test_index_all_reviews_indexes_inline_review_comments(db_session):
+
+def test_index_all_reviews_indexes_inline_review_comments(
+    db_session,
+    make_user,
+):
+    user = make_user()
     repository = models.Repository(
+        user_id=user.id,
         owner="octo-org",
         name="octo-repo",
         default_branch="main",
@@ -152,12 +160,15 @@ def test_index_all_reviews_indexes_inline_review_comments(db_session):
     service.ai_service = FakeAIService()
     service.vector_service = FakeVectorService()
 
-    result = service.index_all_reviews(db_session)
+    result = service.index_all_reviews(
+        db_session,
+        user_id=user.id,
+    )
 
     assert result["indexed_review_comments"] == 1
     assert service.vector_service.documents == [
         {
-            "document_id": "review-comment:3001",
+            "document_id": f"review-comment:{repository.id}:3001",
             "document_text": (
                 "api/app/services/ingestion_service.py at line 42\n"
                 "This inline review comment should be embedded because it "

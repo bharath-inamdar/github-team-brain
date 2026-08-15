@@ -10,8 +10,11 @@ from app.services import pull_request_service
 def test_import_pull_requests_uses_mocked_github_data(
     db_session,
     monkeypatch,
+    make_user,
 ):
+    user = make_user()
     repository = models.Repository(
+        user_id=user.id,
         owner="octo-org",
         name="octo-repo",
         default_branch="main",

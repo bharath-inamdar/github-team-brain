@@ -3,10 +3,8 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 
 ARG VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-ARG VITE_API_KEY=
 
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_API_KEY=$VITE_API_KEY
 
 COPY frontend/package*.json ./
 RUN npm ci

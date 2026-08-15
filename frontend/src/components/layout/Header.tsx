@@ -1,10 +1,14 @@
-import { BrainCircuit, GitBranch, ShieldCheck } from "lucide-react";
+import { BrainCircuit, GitBranch, LogOut, ShieldCheck } from "lucide-react";
+
+import { useAuth } from "@/auth/AuthContext";
 
 interface HeaderProps {
   repositoryCount: number;
 }
 
 export default function Header({ repositoryCount }: HeaderProps) {
+  const { user, logout } = useAuth();
+
   return (
     <header className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
       <div className="flex min-w-0 items-center gap-4">
@@ -37,10 +41,24 @@ export default function Header({ repositoryCount }: HeaderProps) {
           {repositoryCount} repositories
         </div>
 
-        <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-          <ShieldCheck className="h-4 w-4" />
-          API ready
-        </div>
+        {user && (
+          <div
+            className="inline-flex max-w-[220px] items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700"
+            title={user.email}
+          >
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span className="truncate">{user.username ?? user.email}</span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={logout}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </button>
       </div>
     </header>
   );
